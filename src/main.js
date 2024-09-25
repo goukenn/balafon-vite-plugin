@@ -76,9 +76,9 @@ const addFavicon = (option) => {
                 const data =  atob(src.trim().split(',')[1]); 
                 fs.writeFileSync(tpath+'.svg', data);
                 const rpath = tpath+'.svg';
-                let ok = Svg2(rpath);
+                let _k = Svg2(rpath);
                 // convert to png cause svg not rendering as automatic svg
-                ok.png({
+                _k.png({
                     transparent:true
                 }).toFile(tpath, (err)=>{
                     if (!err){
