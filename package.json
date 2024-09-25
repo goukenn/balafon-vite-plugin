@@ -1,6 +1,6 @@
 {
-  "name": "@balafon/vite-plugin",
-  "version": "1.0.0",
+  "name": "balafon-vite-plugin",
+  "version": "1.0.1",
   "main": "src/main.js",
   "author": "<bondje.doue@gmail.com>",
   "license": "MIT",
