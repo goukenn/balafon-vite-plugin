@@ -1,0 +1,12 @@
+{
+  "name": "@balafon/vite-plugin",
+  "version": "1.0.0",
+  "main": "src/main.js",
+  "author": "<bondje.doue@gmail.com>",
+  "license": "MIT",
+  "type": "module",
+  "devDependencies": {
+    "cli-color": "^2.0.4",
+    "oslllo-svg2": "^3.0.0"
+  }
+}
