@@ -5,6 +5,7 @@
   "author": "<bondje.doue@gmail.com>",
   "license": "MIT",
   "type": "module",
+  "private": false,
   "devDependencies": {
     "cli-color": "^2.0.4",
     "oslllo-svg2": "^3.0.0",
