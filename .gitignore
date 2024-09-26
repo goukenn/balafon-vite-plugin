@@ -2,3 +2,4 @@
 .vsode
 yarn*
 dist/*
+webpack.config.js
