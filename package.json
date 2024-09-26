@@ -6,10 +6,21 @@
   "license": "MIT",
   "type": "module",
   "private": false,
+  "description": "balafon+vite plugin helper",
+  "keywords": [
+    "balafon",
+    "vite",
+    "tools",
+    "vuejs"
+  ],
   "devDependencies": {
     "cli-color": "^2.0.4",
     "oslllo-svg2": "^3.0.0",
     "webpack": "^5.95.0",
     "webpack-cli": "^5.1.4"
+  },
+  "scripts": {
+    "start":"node src/main.js",
+    "test":"node tests/sc.ts.js"
   }
 }
