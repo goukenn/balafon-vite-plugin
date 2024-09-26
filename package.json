@@ -23,6 +23,7 @@
   },
   "scripts": {
     "start": "node src/main.js",
-    "test": "node tests/sc.ts.js"
+    "test": "node tests/sc.ts.",
+    "publish": "yarn publish"
   }
 }
