@@ -95,7 +95,7 @@ export {
     virtualReferenceHandler
 }
 export default (option) => {
-    console.log(cli.blueBright('balafon') + ' - plugins ' + cli.green('@balafon/vite-plugins'))
+    console.log(cli.blueBright('balafon') + ' - plugins ' + cli.green('balafon-vite-plugin'))
     return [
         removeIndexHtml(option),
         addFavicon(option),
