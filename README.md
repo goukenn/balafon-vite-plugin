@@ -25,7 +25,7 @@ or
 yarn add balafon-vite-plugin
 ```
 
-Note: this package depend on `cli-color` and `oslllo-svg2` 
+Note: this package depend on `cli-color`, `oslllo-svg2` and `vite`
 
 ## usage
 - in vite.config.js
@@ -41,4 +41,44 @@ export default defineConfig({
     ]
 })
 
+```
+
+
+## in application 
+
+- `virtual:balafon-corejs` : to inject balafon core script. used in development to gain access to `balafon.core.js` library. will inject `$igk` as globalVariable and `globalThis.igk`
+
+-- usage
+```js
+import 'virtual:balafon-corejs';
+
+$igk(...);
+```
+- `virtual:balafon-corejs`: inject framework dynamic core css.
+
+- `virtaul:balafon-project-settings` : retrieve controller application session depend of the plugins (dev|production must be dynamic resolved)
+
+
+
+
+## option to pass to balafon config
+```json
+{
+    "leaveIndexHtml": {
+        "type":"boolean",
+        "description":"do not remove index.html"
+    },
+    "cwdir":{
+        "type":"string",
+        "description":"controller working directory"
+    },
+    "controller":{
+        "type":"string",
+        "description":"target controller name"
+    },
+    "defaultUser":{
+        "type":"string",
+        "description":"login of the user to uses"
+    }
+}
 ```
