@@ -1,41 +1,22 @@
 import path from 'path'
 import fs from 'fs'
 import cli from 'cli-color'
-import { exec } from 'child_process';
-import Svg2 from 'oslllo-svg2';
+import { exec } from 'child_process'; 
 import { normalizePath, loadEnv } from 'vite';
 const __dirname = process.env.INIT_CWD;
 const __baseOptions = {
     controller: null,
     cwdir: null,
     leaveIndexHtml: false,
-    defaultUser: null
+    defaultUser: null,
+    target:'app'
 };
+const _config_option = {};
 const __ids = {};
 const __app_environment = { _init: false };
 const mode = process.env.NODE_ENV ?? 'development';
-const is_prod = process.env.NODE_ENV == 'production';
-
-// const base_log = console.log;
-// console.log = (msg)=>{
-// if (msg.indexOf('transforming') != -1){
-//     base_log("transforming");
-// }
-//     base_log(msg);
-// }
-// console.debug = (msg)=>{
-//     console.log("debugging", msg);
-// }
-// console.info = (msg)=>{
-//     console.log("debugging", msg);
-// }
-// const p = process.stdout.write;
-// process.stdout.write = function(msg){
-//     if (msg.indexOf('transforming') != -1){
-//         base_log("transforming");
-//     }
-//     //console.log("writting.....", m);
-// }
+const is_prod = process.env.NODE_ENV == 'production'; 
+ 
 
 async function init_env(option) {
     if ('_init' in __app_environment) {
@@ -224,6 +205,10 @@ const virtualReferenceHandler = (option) => {
             return {
                 code: `export default ${src}`
             }
+        },
+        'virtual:balafon-utility': async function(){
+            let {target} = _config_option;
+            return `const _data = ${JSON.stringify(({target}))}; const initVueApp= (app)=>{app.mount(_data.target|| '#app'); return app;}; export { initVueApp };`;
         }
     };
     const v_idxs = {};
@@ -268,24 +253,25 @@ const addFavicon = (option) => {
             let tpath = path.resolve(_ref.outDir, 'favicon.ico');
             if (!fs.existsSync(tpath)) {
                 // try create a favicon
-                const src = await exec_cmd('--favicon')
+                const src = await exec_cmd('--favicon --type:png')
                 const data = atob(src.trim().split(',')[1]);
                 const dir_name = path.dirname(tpath);
                 if (!fs.existsSync(dir_name)) {
                     fs.mkdirSync(dir_name, { recursive: true });
                 }
-                fs.writeFileSync(tpath + '.svg', data);
-                const rpath = tpath + '.svg';
-                let _k = Svg2(rpath);
+                fs.writeFileSync(tpath + '.png', data);
+                // fs.writeFileSync(tpath + '.svg', data);
+                // const rpath = tpath + '.svg';
+                // let _k = Svg2(rpath);
                 // convert to png cause svg not rendering as automatic svg
-                _k.png({
-                    transparent: true
-                }).toFile(tpath, (err) => {
-                    if (!err) {
-                        console.log("store " + cli.green("favicon"));
-                        fs.unlinkSync(rpath);
-                    }
-                })
+                // _k.png({
+                //     transparent: true
+                // }).toFile(tpath, (err) => {
+                //     if (!err) {
+                //         console.log("store " + cli.green("favicon"));
+                //         fs.unlinkSync(rpath);
+                //     }
+                // })
             }
         }
     }
@@ -301,6 +287,9 @@ const initEnv = (option) => {
         async config(conf) {
             await init_env(option);
             const { cwdir, controller } = option;
+            if (!cwdir || !controller){
+                return;
+            }
             const env = loadEnv(mode, cwdir);
             env.VITE_IGK_CONTROLLER = controller;
             env.VITE_IGK_ENTRY_URL = env['VITE_URL'] + __app_environment.entryuri;
@@ -318,67 +307,33 @@ const initEnv = (option) => {
         }
     };
 }
-const resolveCoreViewsHandler = (option) => {
-    const _ref = {};
-    return {
-        configResolved(option) {
-            _ref.outDir = path.resolve(option.root, option.build.outDir);
-        },
-        /**
-         * override configuration to handle config resolution alias
-         * @param {*} conf 
-         */
-        config(conf) {
-            const { cwdir } = option;
-            if (!conf.resolve.alias)
-                conf.resolve.alias = {};
-            conf.resolve.alias['@core-views'] = cwdir + '/Views';
 
-            conf.build.rollupOptions.output.chunkFileNames = (s) => {
-                const ref = {
-                    "\0virtual:balafon-corejs": "js/corejs.js",
-                    "\0virtual:balafon-corecss": "js/corecss.js"
-                };
-                const { facadeModuleId } = s;
-                if (facadeModuleId && (facadeModuleId in ref)) {
-
-                    return ref[facadeModuleId]
-                }
-                let bid = '/Volumes/Data/wwwroot/core/Projects/SampleVueAppDemo/Views/';
-                let name = s.name;
-                if (facadeModuleId) {
-                    let p = facadeModuleId.startsWith(bid);
-                    if (p) {
-                        name = facadeModuleId.substring(bid.length);
-                        let tname = name.split('.');
-                        let ext = tname.length > 1 ? tname.pop() : '';
-                        name = tname.join('.');
-                    }
-                }
-                // return 'vendor/[name]';
-                return 'js/' + name + '.js';
-            };
-        },
-        load(id) {
-            if (/\.phtml$/.test(id)) {
-                if (!is_prod) {
-                    console.log(cli.red('project-components') + ' - ' + id);
-                    // load core view files 
-                    return "export default (()=>'loading " + id + "')()";
-                } else {
-                    return "export default (()=>'loading production " + id + "')()";
-                }
-            }
-        }
-    }
+/**
+ * use to initialize vue application with balafon core setting
+ * @param {*} init 
+ */
+const initVueApp = (app)=>{
+    app.mount(option.target);
+    return app;
 }
+/**
+ * create vuew application utility 
+ * @param {*} option 
+ * @returns 
+ */
+const createVueApp = (option)=>{
+    return {
+
+    }
+};
+
 export {
     removeIndexHtml,
     addFavicon,
     virtualReferenceHandler,
     viewControllerDefinition,
     initEnv,
-    resolveCoreViewsHandler,
+    initVueApp
 }
 /**
  * 
@@ -386,13 +341,14 @@ export {
 export default async (option) => {
     console.log(cli.blueBright('balafon') + ' - plugin ' + cli.green('balafon-vite-plugin'))
     option = merge_properties(option, __baseOptions);
+    merge_properties(_config_option, option);
     return [
         removeIndexHtml(option),
         addFavicon(option),
         virtualReferenceHandler(option),
         // viewControllerDefinition(option),
         watchForProjectFolder(option),
-        initEnv(option),
-        resolveCoreViewsHandler(option)
+        initEnv(option), 
+        createVueApp(option)
     ];
 }

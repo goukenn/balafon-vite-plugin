@@ -25,7 +25,7 @@ or
 yarn add balafon-vite-plugin
 ```
 
-Note: this package depend on `cli-color`, `oslllo-svg2` and `vite`
+Note: this package depend on `cli-color` and `vite`
 
 ## usage
 - in vite.config.js
