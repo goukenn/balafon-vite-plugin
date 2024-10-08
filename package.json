@@ -1,6 +1,6 @@
 {
-  "name": "balafon-vite-plugin",
-  "version": "1.0.8",
+  "name": "vite-plugin-balafon",
+  "version": "1.0.1",
   "main": "src/main.js",
   "author": "<bondje.doue@gmail.com>",
   "license": "MIT",
@@ -9,6 +9,7 @@
   "description": "balafon+vite plugin helper",
   "keywords": [
     "balafon",
+    "vite-plugin",
     "vite",
     "tools",
     "vuejs"
@@ -19,8 +20,7 @@
     "webpack-cli": "^5.1.4"
   },
   "dependencies": {
-    "cli-color": "^2.0.4",
-    "oslllo-svg2": "^3.0.0"
+    "cli-color": "^2.0.4"
   },
   "scripts": {
     "start": "node src/main.js",
