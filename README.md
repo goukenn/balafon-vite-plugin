@@ -1,13 +1,15 @@
 # balafon-vite-plugin
 
+## goal
 help handling balafon project configuration. 
 
 - author : C.A.D. BONDJE DOUE ([cbondje@igkdev.com])
 
 ## require
 
-- balafon php framework
-- balafon cli must be installed as global path (and be executable for UNIX system)
+- `balafon php framework` ([https://balafon.igkdev.com/get-download])
+- `balafon` cli must be installed as global path (and be executable for UNIX system)
+- `php8+`
 
 > check with this command:
 
