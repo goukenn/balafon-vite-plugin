@@ -1,0 +1,41 @@
+const target = %target%;
+import * as Vue from 'vue';
+import Icon from 'virtual:balafon-iconslib';
+import libicons from 'virtual:balafon-libicons';
+// + | direct incocation inclusion 
+import 'virtual:balafon-corejs';
+import 'virtual:balafon-corecss';
+// + | inject 
+if (typeof(globalThis.Vue)=='undefined'){
+    globalThis.Vue = Vue;
+}  
+
+const createApp = async (app, option)=>{ 
+    const { createApp } = Vue;
+    
+    // await Promise.all([
+    //     import(/* @vite-ignore */ 'virtual:balafon-corejs'),
+    //     import(/* @vite-ignore */ 'virtual:balafon-corecss'), 
+    // ]);
+
+    app = createApp(app, option);  
+    if (libicons){
+      
+        // console.log("the icons ", libicons) 
+        app.provide('lib/icons', {default: 'ionicons', libicons});   
+    }
+    app.component('Icon', Icon)
+
+    if (target){
+        app.mount(target);
+    }
+    return app;
+};
+export default (()=>{
+    return {
+        createApp
+    };
+})() 
+
+
+export { createApp } 

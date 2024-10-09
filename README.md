@@ -18,11 +18,11 @@ balafon --version
 ## installation 
 
 ```bash
-npm -i balafon-vite-plugin
+npm -i vite-plugin-balafon
 ```
 or 
 ```bash
-yarn add balafon-vite-plugin
+yarn add vite-plugin-balafon
 ```
 
 Note: this package depend on `cli-color` and `vite`
@@ -79,6 +79,22 @@ $igk(...);
     "defaultUser":{
         "type":"string",
         "description":"login of the user to uses"
+    },
+    "buildCoreAssetOutput":{
+        "type":"string",
+        "description": "sub assets folder wher to store core assets. default will be \"balafon/\""
+    },
+    "buildCoreJSAsAsset":{
+        "type":["boolean"],
+        "description":"ask to deploy CoreJs as asset"
+    },
+    "buildCoreCssAsAsset":{
+        "type":["boolean"],
+        "description":"ask to deploy CoreCss as assets"
+    },
+    "buildIconLibAsAsset":{
+        "type":["boolean"],
+        "description":"ask to deploy Icons libraries as assets"
     }
 }
 ```
