@@ -5,8 +5,10 @@ import { exec } from 'child_process';
 import { normalizePath, loadEnv } from 'vite';
 import { fileURLToPath } from 'url';
 
-
-
+/**
+ * in global configuration 
+ */
+let _globalConf = null;
 const __dirname = process.env.INIT_CWD;
 const __baseOptions = {
     controller: null,
@@ -96,8 +98,8 @@ const watchForProjectFolder = (option) => {
                     if (/\/Data\/config\.xml$/.test(file)) {
                         server.restart();
                     } else if (/\.(phtml|pcss|bview|php|css|xml)$/.test(file)) {
+                        // + | invalidate styling virtual module
                         const mod_graph = server.moduleGraph;
-                        // invalvidate styling vitrual module
                         const { idxs } = __ids;
                         if (!idxs || (Object.keys(idxs).length == 0)) {
                             const module = mod_graph.getModuleById("\0virtual:balafon-corecss");
@@ -205,9 +207,15 @@ const virtualReferenceHandler = (option) => {
             return entries['core.css.js'];
         },
         'virtual:balafon-corejs': async function () {
-            let src = await exec_cmd('--js:dist');
+            let src = "";
+            const is_ssr = v_option.build.ssr!==false;
             // ingore core-js import use to skip vite to analyse it
             src = src.replace(/\bimport\b\s*\(/g, "import(/* @vite-ignore */", src);
+            if (is_ssr){
+                src = "(function(window){})((typeof(window)=='undefined'?null:window) || globalThis);";
+            }else{
+                src = await exec_cmd('--js:dist');
+            }
 
             if (is_prod) {
                 const _id = 'core.js';
@@ -236,13 +244,19 @@ const virtualReferenceHandler = (option) => {
             // + | inject core style 
             // + | 
             const { controller } = option;
+            const is_ssr = v_option.build.ssr!==false;
+            if (is_prod) {
+                if (is_ssr){
+                    // disable calculation of corecss
+                    return 'export default null';
+                }
+            }
             let cmd = controller ? '--project:css-dist ' + controller : '--css:dist';
             cmd += ' --set-env:IGK_VITE_APP=1'
             let src = await exec_cmd(cmd, option);
             src = btoa(src);
-            let j = `export default (()=>{let l = document.createElement("style"); document.body.appendChild(l); l.append(atob("` + src + `")); return l;})();`;
-            if (is_prod) {
-
+            let j = `const _oc = atob("` + src + `"); export default (()=>{ if (typeof(document)=='undefined') return null; let l = document.createElement("style"); document.body.appendChild(l); l.append(_oc); return l;})();`;
+            if (is_prod) {  
                 if (!option.buildCoreJSAsAsset) {
                     const _id = 'core.css.js';
                     let p = option.buildCoreAssetOutput ?? 'balafon';
@@ -282,12 +296,12 @@ const virtualReferenceHandler = (option) => {
         //     return `export default {render(){const{h}=Vue;return h('svg',{height:512,viewBox:'0 0 512 512',width:512,xmlns:'http://www.w3.org/2000/svg',innerHTML:'<line style="fill:none;stroke:#000;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px" x1="256" x2="256" y1="112" y2="400"></line><line style="fill:none;stroke:#000;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px" x1="400" x2="112" y1="256" y2="256"></line>'})}}`;
         //     //return "export default (()=>{ const { h } = Vue;  return {render(){return h('sample'); }} })()";
         // },
-        'virtual:balafon-svg/sfsymbols': async function () {
+        // 'virtual:balafon-svg/sfsymbols': async function () {
 
-        },
-        'virtual:balafon-svg/ionicons': async function () {
+        // },
+        // 'virtual:balafon-svg/ionicons': async function () {
 
-        },
+        // },
         'virtual:balafon-vite-app': async function () {
             let _file = fs.readFileSync(_fs_exports('/app.js.template'), 'utf-8');
             // + |  treat code file
@@ -298,7 +312,7 @@ const virtualReferenceHandler = (option) => {
         },
         'virtual:balafon-iconslib': async function () {
             let _file = fs.readFileSync(_fs_exports('/iconlib.vue.template'), 'utf-8');
-            let _plugins = _vue_();
+            let _plugins = _vue_(v_option.plugins);
             let _result = null;
             // + |  treat code file
             _file = _file.replaceAll('%default_lib%', option.icons['\0default_lib'] ?? 'ionicons')
@@ -318,11 +332,12 @@ const virtualReferenceHandler = (option) => {
     let v_option = null;
     __ids.idxs = v_idxs;
     let _vue_plugins = null;
-    function _vue_() {
-        return (_vue_plugins == null) ? (_vue_plugins = (() => {
-            v_option.plugins.forEach((i) => { if (i.name == 'vite:vue') _vue_plugins = i; })
+    function _vue_(plugins) {
+        return (_vue_plugins === null) ? (_vue_plugins = (() => {
+            _vue_plugins = 0;
+            plugins.forEach((i) => { if (i.name == 'vite:vue') _vue_plugins = i; })
             return _vue_plugins;
-        })()) : _vue_plugins = 0;
+        })()) : _vue_plugins;
     }
 
 
@@ -423,9 +438,8 @@ const initEnv = (option) => {
     };
 }
 
-const _cached_libicons = function () {
-
-};
+// const _cached_libicons = function () { 
+// };
 /**
  * 
  * @param {*} option 
@@ -468,7 +482,7 @@ const balafonIconLib = (option) => {
     function chunkPrefix(option) {
         return option.buildCoreAssetOutput ?? 'balafon';
     }
-    const entries = [];
+    const entries = []; 
     /** @type{import('vite').Plugin}*/
     return {
         name: 'balafon:libicons',
@@ -485,9 +499,11 @@ const balafonIconLib = (option) => {
         },
         async load(id, p) {
             if (id == "\0virtual:balafon-libicons") {
+                const is_ssr = top_conf.build.ssr !== false;
+               
+
 
                 if (is_prod) {
-                    const r = this.cache.get('d');
                     const data = ((f) => {
                         if (fs.existsSync(f)) {
                             return JSON.parse(fs.readFileSync(f, 'utf-8'));
@@ -496,6 +512,11 @@ const balafonIconLib = (option) => {
                     const cmd = _get_cmd(data);
                     // + | emit only work on production -
                     let src = await exec_cmd('--vue3:convert-svg-to-js-lib ' + cmd);
+
+                    if (is_ssr){
+                        // direct export 
+                        return ['import * as Vue from \'vue\'; ', src].join("\n");
+                    }
 
                     if (!option.buildIconLibAsAsset) {
                         // + | emit as cunk
@@ -509,10 +530,9 @@ const balafonIconLib = (option) => {
                         });
                         entries[_id] = src;
                         ref_emits.push(tref);
-                        return 'export default (()=>import(import.meta.ROLLUP_FILE_URL_' + tref + '))()';
+                        //return 'export default (async ()=> await import(import.meta.ROLLUP_FILE_URL_' + tref + '))()';
+                        return 'export default (()=> import(import.meta.ROLLUP_FILE_URL_' + tref + '))()';
                     }
-
-
                     let ref1 = this.emitFile({
                         type: 'asset',
                         name: 'svg-lib.js',
@@ -523,7 +543,6 @@ const balafonIconLib = (option) => {
                     let code = `export default (()=>import(import.meta.ROLLUP_FILE_URL_${ref1}))()`;
                     return { code, map: null }
                 }
-                //return { code: 'export default null;', map: null }
                 return { code: 'export default null;', map: null }
             }
             if (id == '\0svg-lib.js') {
@@ -550,10 +569,7 @@ const balafonIconLib = (option) => {
                             m.forEach((n) => {
                                 code = code.replace(n, '(await $1).default');
                             });
-                            // fix writing lib
-                            // if (/\/svg-lib.js$/.test(i)){
-                            //code = 'export default '+code;
-                            // }
+                            // fix writing lib 
                             file.code = code;
                         }
                     }
@@ -565,9 +581,21 @@ const balafonIconLib = (option) => {
 
 const balafonIconLibraryAccess = (option) => {
     const store = {};
+    let v_option = null;
+    let _vue_plugins = null;
+    function _vue_(plugins) {
+        return (_vue_plugins === null) ? (_vue_plugins = (() => {
+            _vue_plugins = 0;
+            plugins.forEach((i) => { if (i.name == 'vite:vue') _vue_plugins = i; })
+            return _vue_plugins;
+        })()) : _vue_plugins;
+    }
     return {
         name: "balafon:libicons-library-access",
         apply: "serve",
+        configResolved(option) {
+            v_option = option;
+        },
         async resolveId(id) {
             if (id.startsWith('virtual:icons/')) {
                 return '\0' + id;
@@ -586,9 +614,22 @@ const balafonIconLibraryAccess = (option) => {
                     return store[key];
                 }
                 const location = option.icons[lib];
-                const fpath = '--single --library:' + lib + ',' + location[0] + "\\;" + name;
-
-                const src = await exec_cmd('--vue3:convert-svg-to-js-lib ' + fpath);
+                const _vue_file = path.join(location[0], name + ".vue");
+                let src = '';
+                if (fs.existsSync(_vue_file)) {
+                    /**
+                     * load .vue with manual edition 
+                     */
+                    let _plugins = _vue_(v_option.plugins);
+                    if (_plugins) {
+                        src = _plugins.transform(fs.readFileSync(_vue_file, 'utf-8'), _vue_file);
+                    } else {
+                        throw new Error('missing plugins');
+                    }
+                } else {
+                    const fpath = '--single --library:' + lib + ',' + location[0] + "\\;" + name;
+                    src = await exec_cmd('--vue3:convert-svg-to-js-lib ' + fpath);
+                }
                 store[key] = src;
                 const _store = store['\0definition'] ?? {};
                 if (!(lib in _store)) {
@@ -598,26 +639,100 @@ const balafonIconLibraryAccess = (option) => {
                 store['\0definition'] = _store;
                 let pp = path.join(this._container.config.cacheDir, '.balafon');
                 fs.mkdirSync(pp, { recursive: true });
-
                 fs.writeFileSync(path.join(pp, 'icons.lib.json'), JSON.stringify(store['\0definition']), 'utf-8');
                 return src;
             }
-        },
-        async buildEnd(error) {
-            console.log("build end ");
         }
     }
 }
 
+/**
+ * balafon ssr loading
+ * @param {*} option 
+ * @returns 
+ */
+const balafonSSRLoading = (option) => {
+    let _conf = null;
+    const _tfile = {};
+    return {
+        "name": "balafon/ssr-loading",
+        'apply': "build",
+        "enforce": "post",
+        configResolved(conf) {
+            _conf = conf;
+        },
+        async closeBundle(s, m, isWrite) {
+            let ssr = _conf.build.ssr;
+            if (typeof (ssr) == 'string') {
+                // + | ---------------------------------------------------
+                // + | for single file entry just retrieve the server data
+                // + |  
+                const _out_dir = _conf.build.outDir;
+                const _is_absolute = path.isAbsolute(_out_dir);
+
+                let _path = path.resolve(_out_dir, ssr);
+                // let _spath = path.resolve(_out_dir, 'entry-server.js');
+                let _tspath = path.resolve(_out_dir, 'entry-server.render.js');
+                let r = null;
+                let _unlinks = [_tspath];
+                if (_is_absolute) {
+                    const _cwd = process.env.PWD;
+                    const is_sub_dir = _out_dir.startsWith(_cwd);
+
+                    if (!is_sub_dir) {
+                        // + | ----------------------------------------
+                        //create a sym link to json package
+                        let rr = path.join(_out_dir, 'package.json');
+                        let rm = path.join(_cwd, 'package.json');
+                        if (!fs.existsSync(rr))
+                            fs.symlinkSync(rm, rr, 'file');
+                        _unlinks.push(rr);
+                        rr = path.join(_out_dir, 'node_modules');
+                        if (!fs.existsSync(rr))
+                            fs.symlinkSync(path.join(_cwd, 'node_modules'), rr, 'dir');
+                        _unlinks.push(rr);
+                    }
+                }
+
+            } else {
+                let input = _conf.build.input
+            }
+        },
+        async buildStart(context) {
+            if (_conf.build.ssr) {
+                // + | emit prebuilt chunk to generate ssr render 
+                _tfile['ssr-render.js'] = this.emitFile({
+                    type: 'prebuilt-chunk',
+                    fileName: 'ssr-render.js',
+                    code: [
+                        " import * as f from './entry-server.js'",
+                        " let m = await f.render();",
+                        " console.log(m.html)"
+                    ].join("\n")
+                });
+            }
+        }
+    }
+};
+
 export {
-    removeIndexHtml,
+    removeIndexHtml, 
     addFavicon,
     virtualReferenceHandler,
     viewControllerDefinition,
     initEnv,
+    balafonSSRLoading,
     balafonIconLibraryAccess,
     balafonIconLib
 }
+const globalInitialize = (option) => {
+    return {
+        name: 'vite-plugin:balafon-global-init',
+        configResolved(conf) {
+            _globalConf = conf;
+        }
+    }
+};
 /**
  * 
  */
@@ -625,12 +740,18 @@ export default async (option) => {
     console.log(cli.blueBright('balafon') + ' - plugin ' + cli.green('vite-plugin-balafon'))
     option = merge_properties(option, __baseOptions);
     merge_properties(_config_option, option);
+
+    if (!option.icons) {
+        option.icons = {};
+    }
     return [
+        globalInitialize(option),
         removeIndexHtml(option),
         addFavicon(option),
         virtualReferenceHandler(option),
         watchForProjectFolder(option),
         initEnv(option),
+        balafonSSRLoading(option),
         balafonIconLibraryAccess(option),
         balafonIconLib(option)
     ];

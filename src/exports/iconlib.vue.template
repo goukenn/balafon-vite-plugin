@@ -20,9 +20,12 @@ const g = inject('lib/icons', null);
 const DefSVGIcon = shallowRef(null)
 function initDefinition(g, r){
     if (g){ 
-        r.DefSVGIcon = g && g.libicons ?
-            g.libicons[lib][props.name]
-            : null;
+        let s = g.libicons && g.libicons[lib];
+        if(!s){
+            console.error(g);
+            console.error('[iconlib] - missing icons library definition ['+lib+']/'+props.name);
+        }
+        r.DefSVGIcon = s ? s[props.name]: null;
     } else{
         r.DefSVGIcon = defineAsyncComponent( ()=>import(/* @vite-ignore */ `/@id/__x00__virtual:icons/${lib}/`+props.name));
     } 

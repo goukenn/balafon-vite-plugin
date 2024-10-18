@@ -95,8 +95,30 @@ $igk(...);
         "description":"ask to deploy CoreCss as assets"
     },
     "buildIconLibAsAsset":{
-        "type":["boolean"],
+        "type":"boolean",
+        "default":false,
         "description":"ask to deploy Icons libraries as assets"
+    },
+    "icons":{
+        "type":"object",
+        "description":"manage svg icons for the projects"
     }
 }
 ```
+
+
+### plugins createApp Override
+```js
+import { createApp } from 'virtual:balafon-vite-app'
+```
+
+
+```js
+import { createSSRApp } from 'virtual:balafon-vite-app'
+```
+
+
+### declerate icons for production 
+
+library: string => [folder_that_contains_svg_or_vue, list_of_file_to_import] 
+

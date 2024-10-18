@@ -5,37 +5,59 @@ import libicons from 'virtual:balafon-libicons';
 // + | direct incocation inclusion 
 import 'virtual:balafon-corejs';
 import 'virtual:balafon-corecss';
-// + | inject 
+// + | inject vue to global value entrie
 if (typeof(globalThis.Vue)=='undefined'){
     globalThis.Vue = Vue;
 }  
-
-const createApp = async (app, option)=>{ 
-    const { createApp } = Vue;
-    
-    // await Promise.all([
-    //     import(/* @vite-ignore */ 'virtual:balafon-corejs'),
-    //     import(/* @vite-ignore */ 'virtual:balafon-corecss'), 
-    // ]);
-
-    app = createApp(app, option);  
-    if (libicons){
-      
+/**
+ * initialize application
+ * @param app 
+ * @param auto_mount 
+ * @returns 
+ */
+function _init_app(app, auto_mount){
+    if (libicons){      
         // console.log("the icons ", libicons) 
         app.provide('lib/icons', {default: 'ionicons', libicons});   
     }
-    app.component('Icon', Icon)
-
-    if (target){
+    app.component('Icon', Icon) 
+    if (auto_mount && target){
         app.mount(target);
     }
     return app;
+}
+/**
+ * create app 
+ * @param app 
+ * @param option 
+ * @returns 
+ */
+const createApp = (app, option, auto_mount )=>{ 
+    const { createApp } = Vue; 
+    auto_mount = auto_mount !== false;
+    let _tapp = createApp(app, option);  
+    return _init_app(_tapp, auto_mount);
 };
+
+/**
+ * encapsulate create ssr app 
+ * @param app 
+ * @param option 
+ * @returns 
+ */
+const createSSRApp = (app, option, auto_mount)=>{
+    const { createSSRApp } = Vue;
+    auto_mount = auto_mount !== false;
+    let _tapp = createSSRApp(app, option);   
+    return _init_app(_tapp, auto_mount);
+}
+
 export default (()=>{
     return {
-        createApp
+        createApp,
+        createSSRApp
     };
 })() 
 
 
-export { createApp } 
+export { createApp, createSSRApp } 
