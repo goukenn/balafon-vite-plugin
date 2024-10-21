@@ -102,7 +102,12 @@ $igk(...);
     "icons":{
         "type":"object",
         "description":"manage svg icons for the projects"
+    },
+    "componentUri":{
+        "type":"string",
+        "description": "indicate entry component server."
     }
+
 }
 ```
 

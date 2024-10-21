@@ -21,7 +21,7 @@ const _config_option = {};
 const __ids = {};
 const __app_environment = { _init: false };
 const mode = process.env.NODE_ENV ?? 'development';
-const is_prod = process.env.NODE_ENV == 'production';
+const is_prod = mode == 'production';
 
 /**
  * get export file
@@ -208,13 +208,14 @@ const virtualReferenceHandler = (option) => {
         },
         'virtual:balafon-corejs': async function () {
             let src = "";
-            const is_ssr = v_option.build.ssr!==false;
+            const is_ssr = v_option.build.ssr !== false;
             // ingore core-js import use to skip vite to analyse it
-            src = src.replace(/\bimport\b\s*\(/g, "import(/* @vite-ignore */", src);
-            if (is_ssr){
-                src = "(function(window){})((typeof(window)=='undefined'?null:window) || globalThis);";
-            }else{
+            if (is_ssr) {
+                //src = "(function(window){})((typeof(window)=='undefined'?null:window) || globalThis);";
+                src = "export default null; ";// (function(window){})((typeof(window)=='undefined'?null:window) || globalThis);";
+            } else {
                 src = await exec_cmd('--js:dist');
+                src = src.replace(/\bimport\b\s*\(/g, "import(/* @vite-ignore */");
             }
 
             if (is_prod) {
@@ -244,9 +245,9 @@ const virtualReferenceHandler = (option) => {
             // + | inject core style 
             // + | 
             const { controller } = option;
-            const is_ssr = v_option.build.ssr!==false;
+            const is_ssr = v_option.build.ssr !== false;
             if (is_prod) {
-                if (is_ssr){
+                if (is_ssr) {
                     // disable calculation of corecss
                     return 'export default null';
                 }
@@ -256,7 +257,7 @@ const virtualReferenceHandler = (option) => {
             let src = await exec_cmd(cmd, option);
             src = btoa(src);
             let j = `const _oc = atob("` + src + `"); export default (()=>{ if (typeof(document)=='undefined') return null; let l = document.createElement("style"); document.body.appendChild(l); l.append(_oc); return l;})();`;
-            if (is_prod) {  
+            if (is_prod) {
                 if (!option.buildCoreJSAsAsset) {
                     const _id = 'core.css.js';
                     let p = option.buildCoreAssetOutput ?? 'balafon';
@@ -292,16 +293,6 @@ const virtualReferenceHandler = (option) => {
             let { target } = _config_option;
             return `const _data = ${JSON.stringify(({ target }))}; const initVueApp= (app)=>{app.mount(_data.target|| '#app'); return app;}; export { initVueApp };`;
         },
-        // 'virtual:icons/ionicons/accessibility': async function(){
-        //     return `export default {render(){const{h}=Vue;return h('svg',{height:512,viewBox:'0 0 512 512',width:512,xmlns:'http://www.w3.org/2000/svg',innerHTML:'<line style="fill:none;stroke:#000;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px" x1="256" x2="256" y1="112" y2="400"></line><line style="fill:none;stroke:#000;stroke-linecap:round;stroke-linejoin:round;stroke-width:32px" x1="400" x2="112" y1="256" y2="256"></line>'})}}`;
-        //     //return "export default (()=>{ const { h } = Vue;  return {render(){return h('sample'); }} })()";
-        // },
-        // 'virtual:balafon-svg/sfsymbols': async function () {
-
-        // },
-        // 'virtual:balafon-svg/ionicons': async function () {
-
-        // },
         'virtual:balafon-vite-app': async function () {
             let _file = fs.readFileSync(_fs_exports('/app.js.template'), 'utf-8');
             // + |  treat code file
@@ -414,7 +405,14 @@ const initEnv = (option) => {
     return {
         async config(conf) {
             await init_env(option);
-            const { cwdir, controller } = option;
+            const {controller } = option;
+            let {cwdir} = option;
+            if (controller && !cwdir){
+                let info = await exec_cmd(`--project:info ${controller} --base-dir`);
+                cwdir = info.trim(); 
+                option.cwdir = cwdir;
+
+            }
             if (!cwdir || !controller) {
                 return;
             }
@@ -482,7 +480,7 @@ const balafonIconLib = (option) => {
     function chunkPrefix(option) {
         return option.buildCoreAssetOutput ?? 'balafon';
     }
-    const entries = []; 
+    const entries = [];
     /** @type{import('vite').Plugin}*/
     return {
         name: 'balafon:libicons',
@@ -500,7 +498,7 @@ const balafonIconLib = (option) => {
         async load(id, p) {
             if (id == "\0virtual:balafon-libicons") {
                 const is_ssr = top_conf.build.ssr !== false;
-               
+
 
 
                 if (is_prod) {
@@ -513,7 +511,7 @@ const balafonIconLib = (option) => {
                     // + | emit only work on production -
                     let src = await exec_cmd('--vue3:convert-svg-to-js-lib ' + cmd);
 
-                    if (is_ssr){
+                    if (is_ssr) {
                         // direct export 
                         return ['import * as Vue from \'vue\'; ', src].join("\n");
                     }
@@ -716,20 +714,95 @@ const balafonSSRLoading = (option) => {
 };
 
 export {
-    removeIndexHtml, 
+    removeIndexHtml,
     addFavicon,
     virtualReferenceHandler,
     viewControllerDefinition,
     initEnv,
     balafonSSRLoading,
     balafonIconLibraryAccess,
-    balafonIconLib
+    balafonIconLib,
+    balafonSSRComponent
 }
 const globalInitialize = (option) => {
     return {
         name: 'vite-plugin:balafon-global-init',
         configResolved(conf) {
             _globalConf = conf;
+        }
+    }
+};
+
+/**
+ * handle project balafon component
+ * @param {*} option 
+ * @returns 
+ */
+const balafonSSRComponent = (option) => {
+    let _conf = null;
+    let _serv_comp_ref = null;
+    let { componentUri } = option;
+    if (!componentUri){
+        return ;
+    }
+    const { controller } = option;
+    return {
+        name: 'balafon:src-component',
+        enforce: 'post',
+        target: 'build',
+        configResolved(conf) {
+            _conf = conf;
+            let chunkSrc = _conf.build.rollupOptions.output.chunkFileNames
+            _conf.build.rollupOptions.output.chunkFileNames = (chunkInfo, r) => {
+                if (is_prod || (_conf.build.ssr !== false)) {
+                    const rgex = /^\0virtual:balafon-components\//;
+                    if (rgex.test(chunkInfo.facadeModuleId)) {
+                        let s = chunkInfo.facadeModuleId.replace(rgex, '');
+                        chunkInfo.name = s;
+                        return 'js/ssr-' + s + '.js';
+                    }
+                }
+                return typeof (chunkSrc) == 'function' ?
+                    chunkSrc.apply(this, [chunkInfo]) :
+                    chunkSrc;
+            }
+            const srv = '@server';
+            if ( !(srv in _conf.resolve.alias)){
+                _conf.resolve.alias[srv] = "";// process.loadEnvFile()
+            }
+        },
+        async load(id) {
+            if (is_prod || (_conf.build.ssr !== false)) {
+                const gex = /^\0virtual:balafon-components\//;
+                if (gex.test(id)) {
+                    id = id.replace(gex, '');
+                    // for controller
+                    if (controller){
+
+                    }
+                   //  return 'export * from "https://local.com:7300/testapi/vite/backend-integration/'+id+'";';
+                    // return ['import * as f from "'+ componentUri + '/' + id +'";', 
+                    //         'export default f.default'].join("\n");
+
+                    let r = await exec_cmd("--request:curl '" + componentUri + '/' + id + "?mode=production&target=ssr'");
+                    return r;
+                }
+            }
+        },
+        resolveId(id) {
+            if (is_prod || (_conf.build.ssr !== false)) {
+                if (/^virtual:balafon-components\//.test(id)) {
+                    return "\0" + id;
+                }
+            }
+        },
+        transform(src, id) {
+            if (is_prod || (_conf.build.ssr !== false)) {
+                if (/\.vue$/.test(id)) {
+                    src = src.replace(/('|")@server\/components\//g, '$1virtual:balafon-components/components/')
+                    return src;
+                }
+            }
         }
     }
 };
@@ -753,6 +826,7 @@ export default async (option) => {
         initEnv(option),
         balafonSSRLoading(option),
         balafonIconLibraryAccess(option),
-        balafonIconLib(option)
+        balafonIconLib(option),
+        balafonSSRComponent(option)
     ];
 }

@@ -5,10 +5,15 @@ import libicons from 'virtual:balafon-libicons';
 // + | direct incocation inclusion 
 import 'virtual:balafon-corejs';
 import 'virtual:balafon-corecss';
-// + | inject vue to global value entrie
+// + | ----------------------------------
+// + | inject vue to global value entries
+// + |
 if (typeof(globalThis.Vue)=='undefined'){
     globalThis.Vue = Vue;
 }  
+if (globalThis.igk){
+    globalThis.igk.Vue = Vue;
+}
 /**
  * initialize application
  * @param app 
