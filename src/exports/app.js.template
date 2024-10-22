@@ -27,10 +27,8 @@ function _init_app(app, auto_mount){
     }
     app.component('Icon', Icon) 
     app.component('Logo', Logo) 
-    if (auto_mount && target){
-        let i = typeof(auto_mount) =='string'?auto_mount :target;
-        console.log("try mounting......", i, auto_mount);
-        app.mount(i);
+    if (auto_mount && target){ 
+        app.mount(typeof(auto_mount) =='string'? auto_mount :target);
     }
     return app;
 }
