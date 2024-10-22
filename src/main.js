@@ -65,7 +65,7 @@ const merge_properties = (obj, prop, merge) => {
  */
 const exec_cmd = async function (cmd, option) {
     var rp = await new Promise((resolve, reject) => {
-        const { controller, cwdir } = option || __baseOptions;
+        const { controller, cwdir } = option || _config_option || __baseOptions;
         const r = ['balafon'];
         r.push(cmd);
         if (controller) {
@@ -852,11 +852,11 @@ export default async (option) => {
     }
     return [
         globalInitialize(option),
+        initEnv(option),
         removeIndexHtml(option),
         addFavicon(option),
         virtualReferenceHandler(option),
         watchForProjectFolder(option),
-        initEnv(option),
         balafonSSRLoading(option),
         balafonIconLibraryAccess(option),
         balafonIconLib(option),
