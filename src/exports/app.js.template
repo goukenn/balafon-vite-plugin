@@ -1,6 +1,7 @@
 const target = %target%;
 import * as Vue from 'vue';
 import Icon from 'virtual:balafon-iconslib';
+import Logo from 'virtual:balafon-logo';
 import libicons from 'virtual:balafon-libicons';
 // + | direct incocation inclusion 
 import 'virtual:balafon-corejs';
@@ -16,8 +17,8 @@ if (globalThis.igk){
 }
 /**
  * initialize application
- * @param app 
- * @param auto_mount 
+ * @param {*} app 
+ * @param {boolean} auto_mount 
  * @returns 
  */
 function _init_app(app, auto_mount){
@@ -26,6 +27,7 @@ function _init_app(app, auto_mount){
         app.provide('lib/icons', {default: 'ionicons', libicons});   
     }
     app.component('Icon', Icon) 
+    app.component('Logo', Logo) 
     if (auto_mount && target){
         app.mount(target);
     }

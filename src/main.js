@@ -9,7 +9,7 @@ import { fileURLToPath } from 'url';
  * in global configuration 
  */
 let _globalConf = null;
-const __dirname = process.env.INIT_CWD;
+const __dirname = process.env.PWD; 
 const __baseOptions = {
     controller: null,
     cwdir: null,
@@ -107,11 +107,16 @@ const watchForProjectFolder = (option) => {
                                 mod_graph.invalidateModule(module);
                             }
                         } else {
+                            let mod_invalidated = false;
                             for (let i in idxs) {
                                 const module = mod_graph.getModuleById(i);
                                 if (module) {
                                     mod_graph.invalidateModule(module);
+                                    mod_invalidated = true;
                                 }
+                            }
+                            if (mod_invalidated) {
+                                return;
                             }
                         }
                         console.log(`[blf] - ${file} changed`);
@@ -185,7 +190,7 @@ const viewControllerDefinition = (option) => {
  */
 const virtualReferenceHandler = (option) => {
     const resolve_ids = {};
-    let _container = null;
+    let _container = null, v_option = null, _vue_plugins = null;
     const to_asset_code = function (q, name, source, { ref }) {
         let p = option.buildCoreAssetOutput ?? 'balafon';
         name = path.join(p, name);
@@ -207,17 +212,18 @@ const virtualReferenceHandler = (option) => {
             return entries['core.css.js'];
         },
         'virtual:balafon-corejs': async function () {
+            // + | ------------------------------------------------------------------------
+            // + | inject balafon corejs
+            // + | 
             let src = "";
             const is_ssr = v_option.build.ssr !== false;
             // ingore core-js import use to skip vite to analyse it
             if (is_ssr) {
-                //src = "(function(window){})((typeof(window)=='undefined'?null:window) || globalThis);";
-                src = "export default null; ";// (function(window){})((typeof(window)=='undefined'?null:window) || globalThis);";
+                 src = "export default null; "; 
             } else {
                 src = await exec_cmd('--js:dist');
                 src = src.replace(/\bimport\b\s*\(/g, "import(/* @vite-ignore */");
-            }
-
+            } 
             if (is_prod) {
                 const _id = 'core.js';
                 if (!option.buildCoreJSAsAsset) {
@@ -317,12 +323,35 @@ const virtualReferenceHandler = (option) => {
                 'code': _file,
                 'map': null,
             }
+        },
+        'virtual:balafon-logo': async () => {
+            // + | ------------------------------------------------------------------------
+            // + |  balafon project logo
+            // + | 
+            const { controller, logo } = option;
+            let g = null;
+            let _lf = logo ? path.resolve(__dirname, logo): null
+            if (_lf && fs.existsSync(_lf)) {
+                g = fs.readFileSync(_lf, 'utf-8');
+            } else {
+                if (!controller) {
+                    return 'import * as Vue from "vue"; const {h} = Vue; export default {render(){return h("div", "logo")}}';
+                }
+                g= await exec_cmd(`--project:info ${controller} --logo`);
+            }
+            let code = null;
+            let _p_vue_plugin = _vue_(v_option.plugins);
+            if (g && _p_vue_plugin) {
+                // + | transform svg content to template using vue:plugin trans form 
+                g = g.substring(g.indexOf("<svg"))
+                g = '<template><span class="logo">' + g + '</span></template>';
+                code = await _p_vue_plugin.transform(g, 'virtual:balafon-logo.vue');
+                return code;
+            }
         }
     };
     const v_idxs = {};
-    let v_option = null;
     __ids.idxs = v_idxs;
-    let _vue_plugins = null;
     function _vue_(plugins) {
         return (_vue_plugins === null) ? (_vue_plugins = (() => {
             _vue_plugins = 0;
@@ -405,13 +434,14 @@ const initEnv = (option) => {
     return {
         async config(conf) {
             await init_env(option);
-            const {controller } = option;
-            let {cwdir} = option;
-            if (controller && !cwdir){
+            const { controller } = option;
+            let { cwdir } = option;
+            if (controller && !cwdir) {
                 let info = await exec_cmd(`--project:info ${controller} --base-dir`);
-                cwdir = info.trim(); 
-                option.cwdir = cwdir;
-
+                if (info){
+                    cwdir = info.trim();
+                    option.cwdir = cwdir;
+                }
             }
             if (!cwdir || !controller) {
                 return;
@@ -435,9 +465,6 @@ const initEnv = (option) => {
         }
     };
 }
-
-// const _cached_libicons = function () { 
-// };
 /**
  * 
  * @param {*} option 
@@ -577,6 +604,11 @@ const balafonIconLib = (option) => {
     };
 };
 
+/**
+ * icons library
+ * @param {*} option 
+ * @returns 
+ */
 const balafonIconLibraryAccess = (option) => {
     const store = {};
     let v_option = null;
@@ -742,8 +774,8 @@ const balafonSSRComponent = (option) => {
     let _conf = null;
     let _serv_comp_ref = null;
     let { componentUri } = option;
-    if (!componentUri){
-        return ;
+    if (!componentUri) {
+        return;
     }
     const { controller } = option;
     return {
@@ -767,7 +799,7 @@ const balafonSSRComponent = (option) => {
                     chunkSrc;
             }
             const srv = '@server';
-            if ( !(srv in _conf.resolve.alias)){
+            if (!(srv in _conf.resolve.alias)) {
                 _conf.resolve.alias[srv] = "";// process.loadEnvFile()
             }
         },
@@ -777,10 +809,10 @@ const balafonSSRComponent = (option) => {
                 if (gex.test(id)) {
                     id = id.replace(gex, '');
                     // for controller
-                    if (controller){
+                    if (controller) {
 
                     }
-                   //  return 'export * from "https://local.com:7300/testapi/vite/backend-integration/'+id+'";';
+                    //  return 'export * from "https://local.com:7300/testapi/vite/backend-integration/'+id+'";';
                     // return ['import * as f from "'+ componentUri + '/' + id +'";', 
                     //         'export default f.default'].join("\n");
 
@@ -807,7 +839,7 @@ const balafonSSRComponent = (option) => {
     }
 };
 /**
- * 
+ * plugins function
  */
 export default async (option) => {
     console.log(cli.blueBright('balafon') + ' - plugin ' + cli.green('vite-plugin-balafon'))

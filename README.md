@@ -78,6 +78,10 @@ $igk(...);
         "type":"string",
         "description":"target controller name"
     },
+    "logo":{
+        "type":"string",
+        "description":"location to .svg logo relative to application working directory to be included "
+    },
     "defaultUser":{
         "type":"string",
         "description":"login of the user to uses"
