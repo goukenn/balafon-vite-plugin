@@ -9,6 +9,7 @@ import { fileURLToPath } from 'url';
  * in global configuration 
  */
 let _globalConf = null;
+const __PLUGIN_NAME__ = 'vite-plugin-balafon'
 const __dirname = process.env.PWD; 
 const __baseOptions = {
     controller: null,
@@ -80,7 +81,7 @@ const exec_cmd = async function (cmd, option) {
             return reject(stderr);
         })
     }).catch((e) => {
-        console.log("error", e);
+        console.log("["+__PLUGIN_NAME__+"] - error - ", e, "\n");
     });
     return rp;
 };
@@ -842,7 +843,7 @@ const balafonSSRComponent = (option) => {
  * plugins function
  */
 export default async (option) => {
-    console.log(cli.blueBright('balafon') + ' - plugin ' + cli.green('vite-plugin-balafon'))
+    console.log(cli.blueBright('igkdev') + ' - plugin ' + cli.green(__PLUGIN_NAME__))
     option = merge_properties(option, __baseOptions);
     merge_properties(_config_option, option);
 

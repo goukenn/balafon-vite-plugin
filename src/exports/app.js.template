@@ -23,38 +23,40 @@ if (globalThis.igk){
  */
 function _init_app(app, auto_mount){
     if (libicons){      
-        // console.log("the icons ", libicons) 
         app.provide('lib/icons', {default: 'ionicons', libicons});   
     }
     app.component('Icon', Icon) 
     app.component('Logo', Logo) 
     if (auto_mount && target){
-        app.mount(target);
+        let i = typeof(auto_mount) =='string'?auto_mount :target;
+        console.log("try mounting......", i, auto_mount);
+        app.mount(i);
     }
     return app;
 }
 /**
  * create app 
- * @param app 
+ * @param {*} app component 
+ * @param {*} option initialize option 
+ * @param {*|boolean|String} auto_mount auto mounting 
  * @param option 
  * @returns 
  */
-const createApp = (app, option, auto_mount )=>{ 
-    const { createApp } = Vue; 
-    auto_mount = auto_mount !== false;
+const createApp = (app, option, auto_mount)=>{ 
+    const { createApp } = Vue;  
     let _tapp = createApp(app, option);  
     return _init_app(_tapp, auto_mount);
 };
 
 /**
  * encapsulate create ssr app 
- * @param app 
- * @param option 
+ * @param {*} app 
+ * @param {*} option 
+ * @param {*|boolean|String} auto_mount auto mounting 
  * @returns 
  */
 const createSSRApp = (app, option, auto_mount)=>{
-    const { createSSRApp } = Vue;
-    auto_mount = auto_mount !== false;
+    const { createSSRApp } = Vue; 
     let _tapp = createSSRApp(app, option);   
     return _init_app(_tapp, auto_mount);
 }

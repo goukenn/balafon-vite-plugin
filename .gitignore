@@ -1,5 +1,5 @@
 **/node_modules/*
 .vsode
 yarn*
-dist/*
+dist
 webpack.config.js
