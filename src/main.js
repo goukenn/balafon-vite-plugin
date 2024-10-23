@@ -14,9 +14,13 @@ const __dirname = process.env.PWD;
 const __baseOptions = {
     controller: null,
     cwdir: null,
+    app_name: null,
     leaveIndexHtml: false,
     defaultUser: null,
-    target: '#app'
+    target: '#app',
+    usePiniaStore: false,
+    useRoute: false,
+    logo:null
 };
 const _config_option = {};
 const __ids = {};
@@ -301,12 +305,40 @@ const virtualReferenceHandler = (option) => {
             return `const _data = ${JSON.stringify(({ target }))}; const initVueApp= (app)=>{app.mount(_data.target|| '#app'); return app;}; export { initVueApp };`;
         },
         'virtual:balafon-vite-app': async function () {
+            let { useRoute , usePiniaStore } = _config_option;
             let _file = fs.readFileSync(_fs_exports('/app.js.template'), 'utf-8');
+            const header = [];
+            const uses = [];
+            if (useRoute){
+                header.push("import routes from '@/route'");
+                uses.push('routes && app.use(routes);');
+            }
+            if (usePiniaStore){
+                header.push("import store from '@/store'");
+                uses.push("store && app.use(store);");
+            }
+            (header.length>0) && header.push('');
+            
             // + |  treat code file
-            _file = _file.replace('%target%', option.target ? '"' + option.target + '"' : 'null')
+            _file = _file.replace('%target%', option.target ? '"' + option.target + '"' : 'null');
+            (uses.length>0) && uses.push('');
+            _file = _file.replace('%header-extra-import%', header.join('\n'));
+            _file = _file.replace('%plugin-use%', uses.join('\n'));
+         
             return {
                 'code': _file
             }
+        },
+        'virtual:balafon-route': async function(){
+            const { controller, app_name } = _config_option;
+            let src = [
+                "const webBasePath = '"+__app_environment.entryuri+"';",
+
+                
+                (await exec_cmd('--vite:route '+controller+' '+(app_name||''), _config_option))+ " ",
+                "export {webBasePath, routes}"
+            ].join("\n");
+            return src;
         },
         'virtual:balafon-iconslib': async function () {
             let _file = fs.readFileSync(_fs_exports('/iconlib.vue.template'), 'utf-8');
@@ -462,6 +494,7 @@ const initEnv = (option) => {
             conf.base = __app_environment.entryuri;
 
             conf.resolve.alias['@core-views'] = cwdir + "/Views";
+            // conf.define['__BASE_ROUTE__'] = conf.base;
 
         }
     };

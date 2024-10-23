@@ -78,6 +78,14 @@ $igk(...);
         "type":"string",
         "description":"target controller name"
     },
+    "useRoute":{
+        "type":"boolean",
+        "description":"active plugin use of routes definition"
+    },
+    "usePiniaStore":{
+        "type":"boolean",
+        "description":"active plugin use of pinia store"
+    },
     "logo":{
         "type":"string",
         "description":"location to .svg logo relative to application working directory to be included "

@@ -6,6 +6,7 @@ import libicons from 'virtual:balafon-libicons';
 // + | direct incocation inclusion 
 import 'virtual:balafon-corejs';
 import 'virtual:balafon-corecss';
+%header-extra-import% 
 // + | ----------------------------------
 // + | inject vue to global value entries
 // + |
@@ -25,6 +26,7 @@ function _init_app(app, auto_mount){
     if (libicons){      
         app.provide('lib/icons', {default: 'ionicons', libicons});   
     }
+    %plugin-use%   
     app.component('Icon', Icon) 
     app.component('Logo', Logo) 
     if (auto_mount && target){ 
