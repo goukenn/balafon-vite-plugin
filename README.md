@@ -139,3 +139,20 @@ import { createSSRApp } from 'virtual:balafon-vite-app'
 
 library: string => [folder_that_contains_svg_or_vue, list_of_file_to_import] 
 
+
+
+
+- Features I18n
+
+"formats" in json spécifie formatting to used
+
+or "text.formats" the new text to use
+
+
+```json
+
+```
+
+
+
+## RELEASE

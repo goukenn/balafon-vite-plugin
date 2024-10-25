@@ -1,16 +1,78 @@
-import path from 'path'
+import path, { basename, normalize } from 'path'
 import fs from 'fs'
 import cli from 'cli-color'
 import { exec } from 'child_process';
 import { normalizePath, loadEnv } from 'vite';
 import { fileURLToPath } from 'url';
 
+
+function chunkPrefix(option) {
+    return option.buildCoreAssetOutput ?? 'balafon';
+}
+function _getSrvComponents(option) {
+    return option.serverComponentPrefix || 'srv-components/';
+}
+/**
+ * 
+ * @param {*} file file to load 
+ * @param {*} g_components  list of g_components
+ * @param {*} _p_vue_plugin 
+ * @param {string} _id identifier without \0
+ * @returns 
+ */
+async function _loadVueFile(file, g_components, _p_vue_plugin, _id) {
+    let code = fs.readFileSync(file, 'utf-8');
+    code = code ? await _p_vue_plugin.transform(code, _id + '.vue') : null;
+    if (!code) {
+        console.error('null defined .... ', { file, _id });
+        return;
+    }
+    g_components[_id] = code;
+};
+
+/**
+ * invalidate module importer code 
+ * @param {*} v_mod 
+ */
+function _invalidateModuleImporter(mod_graph, v_mod, send) {
+    // + | invalidate importers chains
+    let pops = [v_mod.importers];
+    const lf = {};
+    while (pops.length > 0) {
+        let q = pops.shift();
+
+        for (let imod of q) {
+            // invalidate importer so that it can reload the necessary plugin - 
+            if (imod.id in lf) continue;
+            lf[imod.id] = ((id, file) => (({ id, file } = imod)))();
+            mod_graph.invalidateModule(imod);
+            if (imod.importers) {
+                pops.unshift(imod.importers);
+            }
+            // send
+            if (send) {
+                server.ws.send({
+                    type: 'update',
+                    updates: [
+                        {
+                            type: 'js-update',
+                            path: imod.url || imod.file,
+                            acceptedPath: imod.url || imod.file
+                        },
+                    ]
+                });
+            }
+        }
+    }
+}
+
 /**
  * in global configuration 
  */
 let _globalConf = null;
+let g_components = {}; // store global components
 const __PLUGIN_NAME__ = 'vite-plugin-balafon'
-const __dirname = process.env.PWD; 
+const __dirname = process.env.PWD;
 const __baseOptions = {
     controller: null,
     cwdir: null,
@@ -20,13 +82,55 @@ const __baseOptions = {
     target: '#app',
     usePiniaStore: false,
     useRoute: false,
-    logo:null
+    logo: null
 };
 const _config_option = {};
 const __ids = {};
 const __app_environment = { _init: false };
 const mode = process.env.NODE_ENV ?? 'development';
 const is_prod = mode == 'production';
+const g_watchFile = [];
+g_watchFile.push = (function (t, m) {
+    let m_plist = [];
+    return function (...a) {
+        if (t.server) {
+            let { watchList } = t;
+            if (!watchList) {
+                watchList = (t.watchList = {})
+            }
+            if (m_plist.length > 0) {
+                a.push(...m_plist);
+            }
+            a.forEach(i => {
+                if (i && !(i in watchList)) {
+                    t.server.watcher.add(i);
+                    watchList[i] = 1;
+                }
+            });
+        } else {
+            a.forEach(p => {
+                m_plist.push(p);
+            });
+        }
+        return m.apply(t, a);
+    }
+})(g_watchFile, g_watchFile.push);
+
+(function (q) {
+    let m_reg = {};
+    q.getId = function (i) {
+        return m_reg[i];
+    };
+    q.store = /**
+    * @param {string} id id of components
+    * @param {string} f full components
+    */
+        function (id, f) {
+            this.push(f);
+            m_reg[f] = "\0" + id.replace("\0", "");
+        };
+
+})(g_watchFile);
 
 /**
  * get export file
@@ -85,26 +189,83 @@ const exec_cmd = async function (cmd, option) {
             return reject(stderr);
         })
     }).catch((e) => {
-        console.log("["+__PLUGIN_NAME__+"] - error - ", e, "\n");
+        console.log("[" + __PLUGIN_NAME__ + "] - error - ", e, "\n");
     });
     return rp;
 };
 
 const watchForProjectFolder = (option) => {
-
+    const watchList = g_watchFile;
     return {
         configureServer(server) {
+            g_watchFile.server = server;
             const { cwdir } = option;
             if (cwdir) {
-
                 server.watcher.add(cwdir);
-                server.watcher.on('change', (file) => {
+                server.watcher.on('change', async (file) => {
                     file = normalizePath(file);
-                    if (/\/Data\/config\.xml$/.test(file)) {
+                    const mod_graph = server.moduleGraph;
+                    if (/\.(vue)$/.test(file)) {
+                        let refid = mod_graph.getModuleById(file);
+
+                        // external module definition 
+                        const v_mod =// mod_graph.getModuleById(file) || 
+                            ((s) => s ? mod_graph.getModuleById(s) : null)(g_watchFile.getId(file))
+
+                        if (v_mod) {
+                            // let ttttp = v_mod.importers.size
+                            // v_mod.importers.clear();
+                            // + | invalidate the module so it can be reloaded via the F5 
+                            mod_graph.invalidateModule(v_mod);
+
+                            let _id = v_mod.id.replace("\0", '');
+                            let _path = '/@id/__x00__' + _id;
+                            // delete the previous composent id
+                            delete (g_components[_id]);
+                            // + | load manually file so it c;n bet loaded when updated on F5
+                            // + | passing id without \0 to let plugin detect vue file
+                            await _loadVueFile(file, g_components, g_watchFile._p_vue_plugin, _id);
+
+                            // _invalidateModuleImporter(mod_graph, v_mod, false);
+                            // v_mod.importers.clear();
+
+                            // + | send request to do HMR 
+                            await server.ws.send({
+                                type: 'update',
+                                updates: [
+                                    {
+                                        type: 'js-update',
+                                        path: _path,
+                                        acceptedPath: _path,
+                                        timestamp: Date.now(),
+                                        explicitImportRequired: false,
+                                        isWithinCircularImport: false,
+                                        ssrInvalidates: []
+                                    }
+                                ]
+                            });
+                            await server.ws.send({
+                                type: 'update',
+                                updates: [
+                                    {
+                                        type: 'css-update',
+                                        path: './assets/css/main.css',
+                                        acceptedPath: './assets/css/main.css',
+                                        timestamp: Date.now(),
+                                        explicitImportRequired: false,
+                                        isWithinCircularImport: false,
+                                        ssrInvalidates: []
+                                    }
+                                ]
+                            });
+                            // console.log(`[blf] - ${file} changed`);
+                            return;
+                        }
+                    }
+                    else if (/\/Data\/config\.xml$/.test(file)) {
                         server.restart();
                     } else if (/\.(phtml|pcss|bview|php|css|xml)$/.test(file)) {
                         // + | invalidate styling virtual module
-                        const mod_graph = server.moduleGraph;
                         const { idxs } = __ids;
                         if (!idxs || (Object.keys(idxs).length == 0)) {
                             const module = mod_graph.getModuleById("\0virtual:balafon-corecss");
@@ -195,6 +356,7 @@ const viewControllerDefinition = (option) => {
  */
 const virtualReferenceHandler = (option) => {
     const resolve_ids = {};
+
     let _container = null, v_option = null, _vue_plugins = null;
     const to_asset_code = function (q, name, source, { ref }) {
         let p = option.buildCoreAssetOutput ?? 'balafon';
@@ -209,6 +371,8 @@ const virtualReferenceHandler = (option) => {
         return { code, map: null };
     };
     const entries = [];
+    const __COMPONENT_PREFIX__ = 'balafon-ssr-component/';
+    let _server;
     const v_modules = {
         'core.js': function () {
             return entries['core.js'];
@@ -224,11 +388,11 @@ const virtualReferenceHandler = (option) => {
             const is_ssr = v_option.build.ssr !== false;
             // ingore core-js import use to skip vite to analyse it
             if (is_ssr) {
-                 src = "export default null; "; 
+                src = "export default null; ";
             } else {
                 src = await exec_cmd('--js:dist');
                 src = src.replace(/\bimport\b\s*\(/g, "import(/* @vite-ignore */");
-            } 
+            }
             if (is_prod) {
                 const _id = 'core.js';
                 if (!option.buildCoreJSAsAsset) {
@@ -305,37 +469,37 @@ const virtualReferenceHandler = (option) => {
             return `const _data = ${JSON.stringify(({ target }))}; const initVueApp= (app)=>{app.mount(_data.target|| '#app'); return app;}; export { initVueApp };`;
         },
         'virtual:balafon-vite-app': async function () {
-            let { useRoute , usePiniaStore } = _config_option;
+            let { useRoute, usePiniaStore } = _config_option;
             let _file = fs.readFileSync(_fs_exports('/app.js.template'), 'utf-8');
             const header = [];
             const uses = [];
-            if (useRoute){
+            if (useRoute) {
                 header.push("import routes from '@/route'");
                 uses.push('routes && app.use(routes);');
             }
-            if (usePiniaStore){
+            if (usePiniaStore) {
                 header.push("import store from '@/store'");
                 uses.push("store && app.use(store);");
             }
-            (header.length>0) && header.push('');
-            
+            (header.length > 0) && header.push('');
+
             // + |  treat code file
             _file = _file.replace('%target%', option.target ? '"' + option.target + '"' : 'null');
-            (uses.length>0) && uses.push('');
+            (uses.length > 0) && uses.push('');
             _file = _file.replace('%header-extra-import%', header.join('\n'));
             _file = _file.replace('%plugin-use%', uses.join('\n'));
-         
+
             return {
                 'code': _file
             }
         },
-        'virtual:balafon-route': async function(){
+        'virtual:balafon-route': async function () {
             const { controller, app_name } = _config_option;
             let src = [
-                "const webBasePath = '"+__app_environment.entryuri+"';",
+                "const webBasePath = '" + __app_environment.entryuri + "';",
 
-                
-                (await exec_cmd('--vite:route '+controller+' '+(app_name||''), _config_option))+ " ",
+
+                (await exec_cmd('--vite:route ' + controller + ' ' + (app_name || ''), _config_option)) + " ",
                 "export {webBasePath, routes}"
             ].join("\n");
             return src;
@@ -363,14 +527,14 @@ const virtualReferenceHandler = (option) => {
             // + | 
             const { controller, logo } = option;
             let g = null;
-            let _lf = logo ? path.resolve(__dirname, logo): null
+            let _lf = logo ? path.resolve(__dirname, logo) : null
             if (_lf && fs.existsSync(_lf)) {
                 g = fs.readFileSync(_lf, 'utf-8');
             } else {
                 if (!controller) {
                     return 'import * as Vue from "vue"; const {h} = Vue; export default {render(){return h("div", "logo")}}';
                 }
-                g= await exec_cmd(`--project:info ${controller} --logo`);
+                g = await exec_cmd(`--project:info ${controller} --logo`);
             }
             let code = null;
             let _p_vue_plugin = _vue_(v_option.plugins);
@@ -381,6 +545,115 @@ const virtualReferenceHandler = (option) => {
                 code = await _p_vue_plugin.transform(g, 'virtual:balafon-logo.vue');
                 return code;
             }
+        },
+        'virtual:balafon-ssr-components': async function () {
+            // + | ------------------------------------------------------------------------
+            // + | SERVING BALAFON SHARED SSR-COMPONENTS 
+            // + | 
+
+            const { controller } = _config_option;
+            let tp = this;
+            let src = (await exec_cmd('--vite:components ' + controller + '') + '').trim();
+            let _p_vue_plugin = _vue_(v_option.plugins);
+            g_watchFile._p_vue_plugin = _p_vue_plugin;
+            let lrc = [];
+            if (src.length > 0) {
+                let m = JSON.parse(src);
+                let l = '$files';
+                if (l in m) {
+                    // load and transform files - to chunk data
+                    let fc = async function (j, i) {
+                        for (i in j) {
+                            let file = j[i];
+                            const _id = __COMPONENT_PREFIX__ + i;
+                            if (is_prod) {
+                                let r = this.emitFile({
+                                    type: 'chunk',
+                                    id: _id,
+                                    name: _getSrvComponents(option) + i,
+                                    preserveSignature: 'strict' // force loading with string definition 
+                                });
+                                lrc[i] = '()=>import(import.meta.ROLLUP_FILE_URL_' + r + ')';
+                                await _loadVueFile(file, g_components, _p_vue_plugin, _id);
+                            } else {
+                                await _loadVueFile(file, g_components, _p_vue_plugin, _id);
+                                const { moduleGraph } = _server;
+                                moduleGraph.getModuleById(file) || await (async (p, l) => {
+                                    /**
+                                     * @type { import('vite').ModuleGraph }
+                                     */
+                                    l = moduleGraph.createFileOnlyEntry(file);
+                                    if (l) {
+                                        l.isSelfAccepting = true;
+                                        moduleGraph.idToModuleMap.set(file, l);
+                                        moduleGraph.urlToModuleMap.set(file, l);
+                                        p = l;
+                                    }
+                                    return p;
+                                })()
+                                g_watchFile.store(_id, file);
+                                lrc.push(i + ': defineAsyncComponent(async()=>await import("' + __COMPONENT_PREFIX__ + i + '"))');//new Function(code.code);
+                            }
+                        }
+                    };
+                    await fc.apply(tp, [m[l]]);
+                }
+                if (is_prod) {
+                    let lsrc = [];
+                    ((i) => { for (i in lrc) { lsrc.push(i + ':' + lrc[i]); } })()
+                    lsrc = lsrc.join(',');
+                    return 'const d ={' + lsrc + '}; export { d as default} ';
+                }
+                let lsrc = '{' + lrc.join(',') + '}';
+                return 'import * as Vue from \'vue\'; const {h, defineComponent, defineAsyncComponent} = Vue; const c = ' + lsrc + '; export {c as default}';
+            }
+
+
+
+            // if (src.length>0){
+            //     let n = {};
+            //     let df = [];
+            //     let idx = 0; // to retrieve id of the component 
+            //     let def = [];
+            //     const pluginTransform = async function(r){
+            //         // console.log('transforming....', r);
+            //         let tsrc = fs.readFileSync(r, 'utf8');
+            //         let f =  basename(r);
+            //         df[r] = await _p_vue_plugin.transform(tsrc, f);
+            //         return r;
+            //     }, defineComponent = (l)=>{
+            //         console.log('log', l);   
+            //         def[idx] = { args: l, func:new Function('defineComponent(l)'), invoke(){
+
+            //         });
+            //         return idx++;
+            //     }, defineAsyncComponent = (l)=>{
+            //         def[idx] = l;
+            //         console.log('async', l);                    
+            //         return idx++;
+            //     }, resolve=(q,i,j)=>{
+            //         for(i in q){
+            //             j = q[i];
+            //             if (typeof(j) == 'number'){
+            //                 q[i] = def[j];
+            //             }else{
+            //                 q[i] = df[j];
+            //             }
+            //         }
+            //     }; // obtain async function constructor
+            //     const AsyncFunction = async function () {}.constructor;
+
+            //     let fc = new AsyncFunction('pluginTransform','defineComponent', 'return '+src+';');
+            //     let g = await fc.apply(n,[pluginTransform, defineComponent]);
+            //     // merging list 
+            //     let tl = resolve(g);
+            //     // fc =  new Function('src', 'g', 'df','resolve', 'return {...(JSON.parse(src)),...resolve(JSON.parse(g))}');
+            //     // let m = fc.apply(null, [src, g, df, resolve]);
+
+
+            //     return 'import * as Vue from \'vue\'; const {h, defineComponent, defineAsyncComponent} = Vue; const c = '+src+'; export {c as default}';
+            // }
+            return 'const c = null; export {c as default}';
         }
     };
     const v_idxs = {};
@@ -399,6 +672,9 @@ const virtualReferenceHandler = (option) => {
         configResolved(option) {
             v_option = option;
         },
+        configureServer(server) {
+            _server = server;
+        },
         /**
          * resolve virtual keys
          * @param {*} id 
@@ -412,6 +688,9 @@ const virtualReferenceHandler = (option) => {
                 v_idxs[v_idx] = id;
                 return v_idx;
             }
+            if (id in g_components) {
+                return '\0' + id;
+            }
         },
         /**
          * 
@@ -422,6 +701,12 @@ const virtualReferenceHandler = (option) => {
                 let v_name = v_idxs[id];
                 let fc = v_modules[v_name];
                 return fc.apply(this, [option]);
+            }
+            let rgp = new RegExp("^\0" + __COMPONENT_PREFIX__);
+            if (rgp.test(id)) {
+                id = id.replace("\0", '');
+                let rep = g_components[id];
+                return rep;
             }
         }
     }
@@ -471,7 +756,7 @@ const initEnv = (option) => {
             let { cwdir } = option;
             if (controller && !cwdir) {
                 let info = await exec_cmd(`--project:info ${controller} --base-dir`);
-                if (info){
+                if (info) {
                     cwdir = info.trim();
                     option.cwdir = cwdir;
                 }
@@ -496,8 +781,79 @@ const initEnv = (option) => {
             conf.resolve.alias['@core-views'] = cwdir + "/Views";
             // conf.define['__BASE_ROUTE__'] = conf.base;
 
+
+            // registre component unkt 
+
+            // let p = {
+            //     ...conf, ...{
+            //         build: {
+            //             rollupOptions: {
+            //                 manualChunks: ((chunk) => {
+            //                     return (n) => {
+            //                         if (/lang\//.test(n)) {
+            //                             // lang resources
+            //                             return 'balafon/chunk-res';
+            //                         }
+            //                         if (/^\0balafon-ssr-component/.test(n)) {
+            //                             // name to return 
+            //                             return 'balafon/srv-components-lib';
+            //                         }
+            //                         if (chunk) {
+            //                             if (typeof (chunk) == 'function') {
+            //                                 return chunk.apply(this, [n]);
+            //                             }
+            //                             return chunk;
+            //                         }
+            //                     }
+            //                 })(conf.build.rollupOptions?.output?.manualChunks)
+            //             }
+            //         }
+            //     }
+            // };
+
+            // console.log('chunk ',p);
+
         }
     };
+}
+const postInitEnv = (option) => {
+    return {
+        name: 'balafon:post-init-env',
+        enforce: 'post',
+        target: 'build',
+        config(conf) {
+            return {
+                ...conf, ...{
+                    build: {
+                        rollupOptions: {
+                            output: {  
+                                manualChunks: ((chunk) => {
+                                    return (n) => { /* @balafon-vite-plugin:manualchunks */
+                                        if (/lang\//.test(n)) {
+                                            // lang resources
+                                            return 'balafon/chunk-res';
+                                        }
+                                        if (/^\0balafon-ssr-component/.test(n)) {
+                                            // name to return 
+                                            return 'balafon/srv-components-lib';
+                                        }
+                                        if (chunk) {
+                                            if (typeof (chunk) == 'function') {
+                                                return chunk.apply(this, [n]);
+                                            }
+                                            return chunk;
+                                        }
+                                    }
+                                })(conf.build.rollupOptions?.output?.manualChunks)
+
+                            }
+                        }
+                    }
+                }
+            };
+
+        }
+    }
 }
 /**
  * 
@@ -514,7 +870,7 @@ const balafonIconLib = (option) => {
             let s = '';
             let l = icons[i];
             s += i + ',';
-            if (Array.isArray(l)) {
+            if (cacheddata && Array.isArray(l)) {
 
                 let p = cacheddata[i];
                 if (p) {
@@ -528,19 +884,16 @@ const balafonIconLib = (option) => {
                     l[1] = tl.join(',');//.split(',').forEach()
                 }
 
-                s += l.join('\\;');
-            } else {
-                s += l;
+
             }
+            s += l.join('\\;');
             lib.push('--library:' + s);
         }
         return lib.length > 0 ? lib.join(' ') : null;
     };
     const ref_emits = [];
     let top_conf = null;
-    function chunkPrefix(option) {
-        return option.buildCoreAssetOutput ?? 'balafon';
-    }
+
     const entries = [];
     /** @type{import('vite').Plugin}*/
     return {
@@ -559,9 +912,6 @@ const balafonIconLib = (option) => {
         async load(id, p) {
             if (id == "\0virtual:balafon-libicons") {
                 const is_ssr = top_conf.build.ssr !== false;
-
-
-
                 if (is_prod) {
                     const data = ((f) => {
                         if (fs.existsSync(f)) {
@@ -579,24 +929,27 @@ const balafonIconLib = (option) => {
 
                     if (!option.buildIconLibAsAsset) {
                         // + | emit as cunk
-                        const _id = 'svg-lib.js'
-                        let tref = this.emitFile({
-                            type: 'chunk',
-                            id: _id,
-                            name: chunkPrefix(option) + '/svg-lib',
-                            // + | preserve the declaration signature  
-                            preserveSignature: 'strict'
-                        });
-                        entries[_id] = src;
-                        ref_emits.push(tref);
-                        //return 'export default (async ()=> await import(import.meta.ROLLUP_FILE_URL_' + tref + '))()';
-                        return 'export default (()=> import(import.meta.ROLLUP_FILE_URL_' + tref + '))()';
+                        if (src?.trim().length > 0) {
+                            const _id = 'svg-lib.js'
+                            let tref = this.emitFile({
+                                type: 'chunk',
+                                id: _id,
+                                name: chunkPrefix(option) + '/svg-lib',
+                                // + | preserve the declaration signature  
+                                preserveSignature: 'strict'
+                            });
+                            entries[_id] = src;
+                            ref_emits.push(tref);
+                            //return 'export default (async ()=> await import(import.meta.ROLLUP_FILE_URL_' + tref + '))()';
+                            return 'export default (()=> import(import.meta.ROLLUP_FILE_URL_' + tref + '))()';
+                        } else {
+                            return 'const d = null; export { d as default}';
+                        }
                     }
                     let ref1 = this.emitFile({
                         type: 'asset',
                         name: 'svg-lib.js',
                         source: src,
-
                     })
                     ref_emits.push(ref1);
                     let code = `export default (()=>import(import.meta.ROLLUP_FILE_URL_${ref1}))()`;
@@ -613,7 +966,6 @@ const balafonIconLib = (option) => {
             ref_emits.forEach((o) => {
                 let n = this.getFileName(o);
                 n = n.replace(".", "\\.");
-
                 m.push(new RegExp(
                     '(import\\(new URL\\("' + n + '",import\\.meta\\.url\\)\\.href\\))', 'g'
                 ));
@@ -785,6 +1137,7 @@ export {
     virtualReferenceHandler,
     viewControllerDefinition,
     initEnv,
+    postInitEnv,
     balafonSSRLoading,
     balafonIconLibraryAccess,
     balafonIconLib,
@@ -886,6 +1239,7 @@ export default async (option) => {
     return [
         globalInitialize(option),
         initEnv(option),
+        postInitEnv(option),
         removeIndexHtml(option),
         addFavicon(option),
         virtualReferenceHandler(option),

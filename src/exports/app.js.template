@@ -3,6 +3,7 @@ import * as Vue from 'vue';
 import Icon from 'virtual:balafon-iconslib';
 import Logo from 'virtual:balafon-logo';
 import libicons from 'virtual:balafon-libicons';
+import Components from 'virtual:balafon-ssr-components';
 // + | direct incocation inclusion 
 import 'virtual:balafon-corejs';
 import 'virtual:balafon-corecss';
@@ -29,6 +30,9 @@ function _init_app(app, auto_mount){
     %plugin-use%   
     app.component('Icon', Icon) 
     app.component('Logo', Logo) 
+    if (Components){
+        ((c,i)=>{for(i in c){if(/\b(Icon|Logo)\b/.test(i))continue;app.component(i,c[i]);}})(Components)
+    }
     if (auto_mount && target){ 
         app.mount(typeof(auto_mount) =='string'? auto_mount :target);
     }
