@@ -1,0 +1,4 @@
+// i18n.template
+%lang%
+
+export { i18n as default, lang}

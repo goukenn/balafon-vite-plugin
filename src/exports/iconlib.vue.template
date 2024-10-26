@@ -2,6 +2,7 @@
     // template definition must inject usage fonction manuage as depending on vue
 import * as Vue from 'vue'; 
 const { inject , defineProps, defineAsyncComponent, watch,shallowRef, reactive} = Vue; 
+const is_prod = process.env.NODE_ENV == 'production';
 const props = defineProps({
     name: {
         type: String,
@@ -26,17 +27,21 @@ const DefSVGIcon = shallowRef(null)
 async function initDefinition(g, r){ 
     if (g){ 
         let s = g.libicons && g.libicons[lib];
-        if(!s){
+        if(!s && !is_prod){
             console.error(g);
             console.error('[iconlib] - missing icons library definition ['+lib+']/'+props.name);
         }
         r.DefSVGIcon = s ? s[props.name]: null;
-    } else{
-        // console.log('import library icons .... component.....', new URL(import.meta.url));
-        //import a packed icon in dev
-        r.DefSVGIcon = defineAsyncComponent(()=> import(/* @vite-ignore */ `./@id/__x00__virtual:icons/${lib}/`+props.name));      
-        //r.DefSVGIcon = defineAsyncComponent( ()=>import(/* @vite-ignore */ `virtual:icons/${lib}/`+props.name));
-    } 
+    } else{         
+        //console.log(import.meta);
+        // + | import a packed using balafon library 
+        // + | note: id reference will be resolved by the plugin so it is mandatory de get the path with ./@id/__x00__
+        // + | so the better way is to import with ./__x00__balafon-icons library
+        r.DefSVGIcon = !is_prod ? 
+        defineAsyncComponent(()=> import(/* @vite-ignore */ `./__x00__balafon-icons/${lib}/`+props.name)) : 
+        null;
+    }
+     
 } 
 
 const lib = props.library || g.default || '%default_lib%';

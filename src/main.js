@@ -22,12 +22,21 @@ function _getSrvComponents(option) {
  */
 async function _loadVueFile(file, g_components, _p_vue_plugin, _id) {
     let code = fs.readFileSync(file, 'utf-8');
+    try{
     code = code ? await _p_vue_plugin.transform(code, _id + '.vue') : null;
     if (!code) {
         console.error('null defined .... ', { file, _id });
         return;
     }
     g_components[_id] = code;
+} catch(e){
+    if (!is_prod){
+    console.log("failed to transfrom ", file);
+    console.error(e);
+    }
+    g_components[_id] = 'const d = null; export { d as default }';
+    return false;
+}
 };
 
 /**
@@ -380,6 +389,21 @@ const virtualReferenceHandler = (option) => {
         'core.css.js': function () {
             return entries['core.css.js'];
         },
+        'virtual:balafon-i18n': async function(){
+            const { controller, i18n, useI18n } = option;
+            const cmd = ['--vite:i18n '];
+            let r = await exec_cmd(cmd.join(' '));  
+            let code = fs.readFileSync(_fs_exports('/i18n.js.template'), 'utf-8');            
+            if (r.trim().length>0){
+                code = code.replaceAll('%lang%', r);
+            }
+
+            return {
+                'code': code
+            }
+
+            return r;
+        },
         'virtual:balafon-corejs': async function () {
             // + | ------------------------------------------------------------------------
             // + | inject balafon corejs
@@ -469,7 +493,7 @@ const virtualReferenceHandler = (option) => {
             return `const _data = ${JSON.stringify(({ target }))}; const initVueApp= (app)=>{app.mount(_data.target|| '#app'); return app;}; export { initVueApp };`;
         },
         'virtual:balafon-vite-app': async function () {
-            let { useRoute, usePiniaStore } = _config_option;
+            let { useRoute, usePiniaStore, useI18n } = _config_option;
             let _file = fs.readFileSync(_fs_exports('/app.js.template'), 'utf-8');
             const header = [];
             const uses = [];
@@ -480,6 +504,10 @@ const virtualReferenceHandler = (option) => {
             if (usePiniaStore) {
                 header.push("import store from '@/store'");
                 uses.push("store && app.use(store);");
+            }
+            if (useI18n){
+                header.push("import i18n from '@/i18n'");
+                uses.push("i18n && app.use(i18n);");
             }
             (header.length > 0) && header.push('');
 
@@ -596,7 +624,16 @@ const virtualReferenceHandler = (option) => {
                                     return p;
                                 })()
                                 g_watchFile.store(_id, file);
-                                lrc.push(i + ': defineAsyncComponent(async()=>await import("' + __COMPONENT_PREFIX__ + i + '"))');//new Function(code.code);
+                                let id = i;
+                                let is_async = false;
+                                if (id.indexOf('-')){
+                                    id = `"${i}"`;
+                                }
+                                is_async =  /^Async/.test(i.split('-').pop())
+                                let v_v =id + ': ';
+                                v_v += (is_async) ? 'defineAsyncComponent(async()=>await import("' + __COMPONENT_PREFIX__ + i + '"))' :
+                                    'defineComponent((await (async ()=>await import("' + __COMPONENT_PREFIX__ + i + '") )()).default)'; 
+                                lrc.push(v_v); // id + ': defineAsyncComponent(async()=>await import("' + __COMPONENT_PREFIX__ + i + '"))');//new Function(code.code);
                             }
                         }
                     };
@@ -1022,15 +1059,16 @@ const balafonIconLibraryAccess = (option) => {
          * @returns 
          */
         async resolveId(id) {
-            if (id.startsWith('virtual:icons/')) {
+            if (id.startsWith('balafon-icons/')) {
                 return '\0' + id;
-            } else if (id.startsWith('@id/\0virtual:icons/')) {
+            } else if (id.startsWith('@id/\0balafon-icons/')) {
                 // relative access
-                return '\0' + id.replace('@id/\0virtual:icons', 'virtual:icons/');
+                //return '\0' + id.replace('@id/\0balafon-icons', 'balafon-icons/');
+                return '\0' + id.replace('@id/\0balafon-icons', 'balafon-icons/');
             }
         },
         async load(id) {
-            if (id.startsWith('\0virtual:icons/')) {
+            if (id.startsWith('\0balafon-icons/')) {
                 const p = id.split('/').slice(1);
                 const lib = p[0];
                 const name = p[1];
