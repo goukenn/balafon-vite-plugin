@@ -505,6 +505,10 @@ const virtualReferenceHandler = (option) => {
             return src;
         },
         'virtual:balafon-iconslib': async function () {
+            // + | ------------------------------------------------------------------------
+            // + | include iconlib template 
+            // + | 
+            
             let _file = fs.readFileSync(_fs_exports('/iconlib.vue.template'), 'utf-8');
             let _plugins = _vue_(v_option.plugins);
             let _result = null;
@@ -1012,11 +1016,17 @@ const balafonIconLibraryAccess = (option) => {
         configResolved(option) {
             v_option = option;
         },
+        /**
+         * 
+         * @param {string} id 
+         * @returns 
+         */
         async resolveId(id) {
             if (id.startsWith('virtual:icons/')) {
                 return '\0' + id;
-            } else if (id.startsWith('/@id/__x00__virtual:icons/')) {
-                return '\0' + id.replace('/@id/__x00__virtual:icons/', 'virtual:icons/');
+            } else if (id.startsWith('@id/\0virtual:icons/')) {
+                // relative access
+                return '\0' + id.replace('@id/\0virtual:icons', 'virtual:icons/');
             }
         },
         async load(id) {
