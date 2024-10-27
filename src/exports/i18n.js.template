@@ -1,4 +1,73 @@
 // i18n.template
-%lang%
+import { createI18n } from 'vue-i18n';
 
-export { i18n as default, lang}
+const _FORMAT_KEY_ = '$formats';
+/**
+ * merged language data definition 
+ * @param {*} lang 
+ * @param {*} data data with $format definition or formats keys that must be and object 
+ * @returns 
+ */
+function _mergeLang(lang, data) {
+    if (!lang) {
+        return;
+    }
+    const { messages, fallbackLocale } = lang;
+    const loc = ((e, i) => {
+        if (!(i in e)) lang.messages[i] = {}; return lang.messages[i];
+    })(lang.messages, fallbackLocale);
+    const bkeys = Object.keys(messages);
+    for (let i in data) {
+        // merge define data
+        ((d) => {
+            if (!(i in messages)) {
+                messages[i] = {};
+            }
+            for (let s in d) {
+                if (s == _FORMAT_KEY_) {
+                    // injectif format
+                    let r = d[s];
+                    if (typeof (r) == 'object') {
+                        const { datetimeFormats } = r;
+                        if (datetimeFormats) {
+                            if (!lang.datetimeFormats) {
+                                lang.datetimeFormats = {};
+                            }
+                            lang.datetimeFormats[i] = datetimeFormats;
+                        }
+
+                    }
+                    continue;
+                }
+                messages[i][s] = d[s];
+            }
+        })(data[i]);
+        if (i != fallbackLocale) {
+            Object.keys(data[i]).forEach(s => {
+                if (!(s in loc)) {
+                    loc[s] = s;
+                }
+            });
+        }
+        let r = bkeys.indexOf(i);
+        if (r != -1) {
+            delete bkeys[r];
+        }
+    }
+
+    bkeys.forEach(o => {
+        // update key levels
+        Object.keys(lang.messages[o]).forEach(s => {
+            if (!(s in loc)) {
+                loc[s] = s;
+            }
+        });
+    });
+}
+
+%lang%
+_mergeLang(lang, %locale%);
+
+const i18n = createI18n(lang);
+
+export { i18n as default, lang }

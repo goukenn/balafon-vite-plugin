@@ -98,6 +98,8 @@ const __ids = {};
 const __app_environment = { _init: false };
 const mode = process.env.NODE_ENV ?? 'development';
 const is_prod = mode == 'production';
+
+// use to watch single 
 const g_watchFile = [];
 g_watchFile.push = (function (t, m) {
     let m_plist = [];
@@ -140,6 +142,32 @@ g_watchFile.push = (function (t, m) {
         };
 
 })(g_watchFile);
+
+/**
+ * 
+ */
+var g_watchListener = new (function BalafonGFileWatchListener(){
+    const m_listener = [];
+    const m_registry = {};
+    let m_server = null;
+    Object.defineProperty(this, 'registry', {get(){return m_registry;}})
+    Object.defineProperty (this, 'server', {get(){return m_server; }, set(v){m_server = v;}})
+    this.handle = function(f){
+        let e = false;
+        let q = this;
+        m_listener.forEach(c=>{
+            e = e || c.apply(q, [f]);
+        });
+        return e;
+    };
+    this.register = function(listener){
+        m_listener.push(listener);
+    };
+    this.clear = function(){
+        this.m_listener.length = 0;
+    }
+
+})();
 
 /**
  * get export file
@@ -208,12 +236,17 @@ const watchForProjectFolder = (option) => {
     return {
         configureServer(server) {
             g_watchFile.server = server;
+            g_watchListener.server = server;
             const { cwdir } = option;
             if (cwdir) {
                 server.watcher.add(cwdir);
                 server.watcher.on('change', async (file) => {
                     file = normalizePath(file);
                     const mod_graph = server.moduleGraph;
+                    if (g_watchListener.handle(file, {type:'change', server})){
+                        return;
+                    }
+
                     if (/\.(vue)$/.test(file)) {
                         let refid = mod_graph.getModuleById(file);
 
@@ -234,9 +267,6 @@ const watchForProjectFolder = (option) => {
                             // + | load manually file so it c;n bet loaded when updated on F5
                             // + | passing id without \0 to let plugin detect vue file
                             await _loadVueFile(file, g_components, g_watchFile._p_vue_plugin, _id);
-
-                            // _invalidateModuleImporter(mod_graph, v_mod, false);
-                            // v_mod.importers.clear();
 
                             // + | send request to do HMR 
                             await server.ws.send({
@@ -390,13 +420,68 @@ const virtualReferenceHandler = (option) => {
             return entries['core.css.js'];
         },
         'virtual:balafon-i18n': async function(){
-            const { controller, i18n, useI18n } = option;
+            const { controller, useI18n } = option;
+            let { i18n, useCore } = option;
+            if (!i18n){
+                if (typeof(useI18n) == 'object'){
+                    i18n = useI18n.dir;
+                    ({useCore} =option); 
+                }
+            }
+            i18n = i18n || 'src/i18n'; 
+            let location = path.resolve(__dirname, i18n);
+            let locale = {};
+            let v_fc_checkLocale = (r)=>{
+                if (r in locale) throw Error('locale '+r+' already defined');
+            };
+            if (!('i18n' in g_watchListener.registry)){
+                const {server} = g_watchListener;
+                server.watcher.add(location);
+                g_watchListener.register((js)=>{
+                    let l = new RegExp("^"+location+"\/.+\.json");
+                    if (l.test(js)){
+                        console.log(cli.magenta('['+this._plugin.name+']')+ ' - language changed');
+                        let mod = server.moduleGraph;
+                        let fmod = mod.getModuleById("\0virtual:balafon-i18n");
+                        if (fmod){
+                            mod.invalidateModule(fmod);
+                            server
+                           .ws.send({
+                                type: 'full-reload' // update 
+                            });
+                        }
+                        return true;
+                    }
+                });   
+                g_watchListener.registry['i18n'] = 1;
+            }
+            fs.readdirSync(location, {recursive:true}).forEach((o,t,m)=>{
+                
+                if (m = /(?<locale>[a-zA-Z\-]+)\.(?<t>\bjson\b)$/.exec(o)){
+                    let l = m.groups['locale'];
+                    let t = m.groups['t'];
+                    v_fc_checkLocale(l); 
+                    let code = fs.readFileSync(path.join(location, o),'utf-8') || '{}';
+                    locale[l] = t == 'json'? JSON.parse(code): (new Function("defineI18n", code)).apply(null,[defineI18n]);
+                }
+            }); 
+
             const cmd = ['--vite:i18n '];
+            if (useCore){
+                cmd.push('--use-core');
+            }
+            cmd.push('--app-i18n:'+location);
+
             let r = await exec_cmd(cmd.join(' '));  
             let code = fs.readFileSync(_fs_exports('/i18n.js.template'), 'utf-8');            
             if (r.trim().length>0){
                 code = code.replaceAll('%lang%', r);
             }
+            code = code.replaceAll('%locale%', JSON.stringify(locale));
+            // + | retrieve local src dir the load every locale.json file 
+            //.exec()
+
+            // + | for every file loaded just watch for change and reload virtual:balafon-i18n and all required parent  
 
             return {
                 'code': code
@@ -1135,7 +1220,7 @@ const balafonSSRLoading = (option) => {
                 const _is_absolute = path.isAbsolute(_out_dir);
 
                 let _path = path.resolve(_out_dir, ssr);
-                // let _spath = path.resolve(_out_dir, 'entry-server.js');
+
                 let _tspath = path.resolve(_out_dir, 'entry-server.render.js');
                 let r = null;
                 let _unlinks = [_tspath];
