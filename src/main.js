@@ -422,13 +422,15 @@ const virtualReferenceHandler = (option) => {
         'virtual:balafon-i18n': async function(){
             const { controller, useI18n } = option;
             let { i18n, useCore } = option;
+            let lang = null;
             if (!i18n){
                 if (typeof(useI18n) == 'object'){
                     i18n = useI18n.dir;
-                    ({useCore} =option); 
+                    ({lang} = useI18n); 
                 }
             }
             i18n = i18n || 'src/i18n'; 
+            lang = lang || 'en';
             let location = path.resolve(__dirname, i18n);
             let locale = {};
             let v_fc_checkLocale = (r)=>{
@@ -470,6 +472,10 @@ const virtualReferenceHandler = (option) => {
             if (useCore){
                 cmd.push('--use-core');
             }
+            if (lang){
+                cmd.push('--lang:'+lang);
+            }
+
             cmd.push('--app-i18n:'+location);
 
             let r = await exec_cmd(cmd.join(' '));  
@@ -519,10 +525,14 @@ const virtualReferenceHandler = (option) => {
                 let ref = { ref: null }
                 return to_asset_code(this, _id, src, ref);
             }
-            return ['export default (()=>{ ',
+            let _result = [
+                'export default (()=>{ ',
+                'try{',
                 src,
+                ' } catch(e){ console.log("[core-js]: ", e); };',
                 ' return globalThis.igk; })()'
-            ].join('');
+            ].join(''); 
+            return _result;
         },
         'virtual:balafon-corecss': async function () {
             // + | ------------------------------------------------------------------------
@@ -601,7 +611,7 @@ const virtualReferenceHandler = (option) => {
             (uses.length > 0) && uses.push('');
             _file = _file.replace('%header-extra-import%', header.join('\n'));
             _file = _file.replace('%plugin-use%', uses.join('\n'));
-
+ 
             return {
                 'code': _file
             }
