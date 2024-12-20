@@ -813,7 +813,8 @@ const virtualReferenceHandler = (option) => {
                                      */
                                     l = moduleGraph.createFileOnlyEntry(file);
                                     if (l) {
-                                        l.isSelfAccepting = true;
+                                        // fix: selfAccepting error Dec 2024
+                                        // l.isSelfAccepting = true;
                                         moduleGraph.idToModuleMap.set(file, l);
                                         moduleGraph.urlToModuleMap.set(file, l);
                                         p = l;
@@ -1052,13 +1053,10 @@ const postInitEnv = (option) => {
                         rollupOptions: {
                             output: {  
                                 manualChunks: ((chunk) => {
-                                    return (n) => { /* @balafon-vite-plugin:manualchunks */
-                                        // if (/\0lang\/i18n\//.test(n)) {
-                                        //     // lang resources
-                                        //     return 'balafon/marge-chunk-res';
-                                        // }
+                                    return (n) => { 
+                                        /* @balafon-vite-plugin:manualchunks */ 
                                         if (/^\0balafon-ssr-component/.test(n)) {
-                                            // name to return 
+                                            // + |  
                                             return 'balafon/srv-components-lib';
                                         } 
                                         if (chunk) {
