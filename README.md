@@ -52,11 +52,13 @@ export default defineConfig({
 
 -- usage
 ```js
-import 'virtual:balafon-corejs';
-
+import 'virtual:balafon-corejs'; 
 $igk(...);
 ```
-- `virtual:balafon-corejs`: inject framework dynamic core css.
+
+
+
+- `virtual:balafon-corecss`: inject framework dynamic core css.
 
 - `virtaul:balafon-project-settings` : retrieve controller application session depend of the plugins (dev|production must be dynamic resolved)
 

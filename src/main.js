@@ -5,8 +5,8 @@ import { exec } from 'child_process';
 import { normalizePath, loadEnv } from 'vite';
 import { fileURLToPath } from 'url';
 
-function _chunkCorePrefix(option){
-    return option.buildCoreAssetOutput ?? 'balafon'; 
+function _chunkCorePrefix(option) {
+    return option.buildCoreAssetOutput ?? 'balafon';
 }
 /**
  * object to inject await in module ching for import 
@@ -14,21 +14,21 @@ function _chunkCorePrefix(option){
  * @param {*} regex 
  * @param {*} replace 
  */
-function BalafonEmitRegex(ref, regex, replace){
+function BalafonEmitRegex(ref, regex, replace) {
 
     regex = regex || '\\(async\\s*\\(\\s*\\)\\s*=>\\s*await\\s+import\\(new\\s+URL\\("[filename]"';
     replace = replace || 'await $&';
 
-    Object.defineProperty(this, 'replace', {get(){return replace}});
-    Object.defineProperty(this, 'source', {get(){return regex}});
-    Object.defineProperty(this, 'ref', {get(){return ref}});
+    Object.defineProperty(this, 'replace', { get() { return replace } });
+    Object.defineProperty(this, 'source', { get() { return regex } });
+    Object.defineProperty(this, 'ref', { get() { return ref } });
 
-    this.regex = function(context, filename ){
-        let v_filename = context.getFileName(ref);  
-        let relative = path.relative('/'+path.dirname(filename), '/'+v_filename);
-        v_filename = relative; 
-        v_filename = v_filename.replace(/\./g,'\\.').
-        replace(/\//g,'\\/'); 
+    this.regex = function (context, filename) {
+        let v_filename = context.getFileName(ref);
+        let relative = path.relative('/' + path.dirname(filename), '/' + v_filename);
+        v_filename = relative;
+        v_filename = v_filename.replace(/\./g, '\\.').
+            replace(/\//g, '\\/');
         let s = regex.replace('[filename]', v_filename);
         return new RegExp(s, 'g');
     }
@@ -44,9 +44,9 @@ function _getSrvComponents(option) {
  * treat identifier 
  * @param {String} name 
  */
-function _identifier(name){ 
-    if (/[a-zA-Z]/.test(name)){
-        name=  '"'+name+'"';
+function _identifier(name) {
+    if (/[a-zA-Z]/.test(name)) {
+        name = '"' + name + '"';
     }
     return name;
 }
@@ -55,8 +55,8 @@ function _identifier(name){
  * @param {string} ref 
  * @returns {string}
  */
-function _rollup_uri(ref){
-    return 'import.meta.ROLLUP_FILE_URL_'+ref;
+function _rollup_uri(ref) {
+    return 'import.meta.ROLLUP_FILE_URL_' + ref;
 }
 /**
  * 
@@ -68,21 +68,21 @@ function _rollup_uri(ref){
  */
 async function _loadVueFile(file, g_components, _p_vue_plugin, _id) {
     let code = fs.readFileSync(file, 'utf-8');
-    try{
-    code = code ? await _p_vue_plugin.transform(code, _id + '.vue') : null;
-    if (!code) {
-        console.error('null defined .... ', { file, _id });
-        return;
+    try {
+        code = code ? await _p_vue_plugin.transform(code, _id + '.vue') : null;
+        if (!code) {
+            console.error('null defined .... ', { file, _id });
+            return;
+        }
+        g_components[_id] = code;
+    } catch (e) {
+        if (!is_prod) {
+            console.log("failed to transfrom ", file);
+            console.error(e);
+        }
+        g_components[_id] = 'const d = null; export { d as default }';
+        return false;
     }
-    g_components[_id] = code;
-} catch(e){
-    if (!is_prod){
-    console.log("failed to transfrom ", file);
-    console.error(e);
-    }
-    g_components[_id] = 'const d = null; export { d as default }';
-    return false;
-}
 };
 
 /**
@@ -195,24 +195,24 @@ g_watchFile.push = (function (t, m) {
 /**
  * 
  */
-var g_watchListener = new (function BalafonGFileWatchListener(){
+var g_watchListener = new (function BalafonGFileWatchListener() {
     const m_listener = [];
     const m_registry = {};
     let m_server = null;
-    Object.defineProperty(this, 'registry', {get(){return m_registry;}})
-    Object.defineProperty (this, 'server', {get(){return m_server; }, set(v){m_server = v;}})
-    this.handle = function(f){
+    Object.defineProperty(this, 'registry', { get() { return m_registry; } })
+    Object.defineProperty(this, 'server', { get() { return m_server; }, set(v) { m_server = v; } })
+    this.handle = function (f) {
         let e = false;
         let q = this;
-        m_listener.forEach(c=>{
+        m_listener.forEach(c => {
             e = e || c.apply(q, [f]);
         });
         return e;
     };
-    this.register = function(listener){
+    this.register = function (listener) {
         m_listener.push(listener);
     };
-    this.clear = function(){
+    this.clear = function () {
         this.m_listener.length = 0;
     }
 
@@ -292,7 +292,7 @@ const watchForProjectFolder = (option) => {
                 server.watcher.on('change', async (file) => {
                     file = normalizePath(file);
                     const mod_graph = server.moduleGraph;
-                    if (g_watchListener.handle(file, {type:'change', server})){
+                    if (g_watchListener.handle(file, { type: 'change', server })) {
                         return;
                     }
 
@@ -463,48 +463,51 @@ const virtualReferenceHandler = (option) => {
     const entries = [];
     const __COMPONENT_PREFIX__ = 'balafon-ssr-component/';
     let _server;
-    const v_modules = {  
+    const v_modules = {
         'core.js': function () {
             return entries['core.js'];
         },
         'core.css.js': function () {
             return entries['core.css.js'];
         },
-        'virtual:balafon-i18n': async function(){
+        'virtual:balafon-i18n': async function () {
             const { controller, useI18n } = option;
             let { i18n, useCore } = option;
-            let lang = null, code = null, templatejs=null;
-            if (!i18n){
-                if (typeof(useI18n) == 'object'){
+            let lang = null, code = null, templatejs = null;
+            if (!i18n) {
+                if (typeof (useI18n) == 'object') {
                     i18n = useI18n.dir;
-                    ({lang} = useI18n); 
+                    ({ lang } = useI18n);
                 }
             }
-            i18n = i18n || 'src/i18n'; 
+            i18n = i18n || 'src/i18n';
             lang = lang || 'en';
             let location = path.resolve(__dirname, i18n);
             let locale = {};
-            let v_fc_checkLocale = (r)=>{
-                if (r in locale) throw Error('locale '+r+' already defined');
+            let v_fc_checkLocale = (r) => {
+                if (r in locale) throw Error('locale ' + r + ' already defined');
             };
             const cmd = ['--vite:i18n '];
-            if (useCore){
+            if (useCore) {
                 cmd.push('--use-core');
             }
-            if (lang){
-                cmd.push('--lang:'+lang);
-            } 
-            cmd.push('--app-i18n:'+location); 
-            let r = await exec_cmd(cmd.join(' '));  
-            templatejs = fs.readFileSync(_fs_exports('/i18n.js.template'), 'utf-8');  
-            templatejs = templatejs.replaceAll('%lang%', r.trim().length>0?r:''); 
-            if (is_prod){
+            if (lang) {
+                cmd.push('--lang:' + lang);
+            }
+            cmd.push('--app-i18n:' + location);
+            let r = await exec_cmd(cmd.join(' '));
+            if (!r){
+                return null;
+            }
+            templatejs = fs.readFileSync(_fs_exports('/i18n.js.template'), 'utf-8');
+            templatejs = templatejs.replaceAll('%lang%', r.trim().length > 0 ? r : '');
+            if (is_prod) {
                 // file for productions .  
                 let ref = this.emitFile({
-                    type:'chunk',
+                    type: 'chunk',
                     id: _id_i18n,
-                    name:'balafon/core-lang',
-                    preserveSignature:'strict'
+                    name: 'balafon/core-lang',
+                    preserveSignature: 'strict'
                 });
 
                 // import all json data then
@@ -512,13 +515,13 @@ const virtualReferenceHandler = (option) => {
                 let q = this;
                 js_res.push('const res={');
                 let ch = '';
-                fs.readdirSync(location, {recursive:true}).forEach((o,t,m)=>{ 
-                    if (m = /(?<locale>[a-zA-Z\-]+)\.(?<t>\bjson\b)$/.exec(o)){
+                fs.readdirSync(location, { recursive: true }).forEach((o, t, m) => {
+                    if (m = /(?<locale>[a-zA-Z\-]+)\.(?<t>\bjson\b)$/.exec(o)) {
                         let l = m.groups['locale'];
                         let ref = q.emitFile({
-                            type:'prebuilt-chunk', 
-                            fileName: 'js/'+_chunkCorePrefix(option)+ '/lang/i18n/'+l+'.js',
-                            code :  'export default '+(fs.readFileSync(path.join(location, o),'utf-8') || '{}')
+                            type: 'prebuilt-chunk',
+                            fileName: 'js/' + _chunkCorePrefix(option) + '/lang/i18n/' + l + '.js',
+                            code: 'export default ' + (fs.readFileSync(path.join(location, o), 'utf-8') || '{}')
                         });
 
                         // let _id = 'lang/i18n/'+l;
@@ -529,17 +532,17 @@ const virtualReferenceHandler = (option) => {
                         //     preserveSignature: true
                         // });
                         // entries[_id] =  'export default '+(fs.readFileSync(path.join(location, o),'utf-8') || '{}');
-                        js_res.push( ch+_identifier(l)+':(async()=>await import('+_rollup_uri(ref)+'))()');
+                        js_res.push(ch + _identifier(l) + ':(async()=>await import(' + _rollup_uri(ref) + '))()');
                         ch = ',';
-                        chunk_await_to[ref]= new BalafonEmitRegex(ref,
+                        chunk_await_to[ref] = new BalafonEmitRegex(ref,
                             "\\(async\\(\\)=>await\\s+import\\(\\s*new\\s+URL\\(\"[filename]\",import\\.meta\\.url\\)\\.href\\)\\)\\(\\)",
                             "(await $&).default"
                         );
                     }
-                });  
+                });
                 js_res.push('}');
 
-                entries['balafon/chunk-res'] = js_res.join("\n")+'; const { fr, en, nl}=res; export { res as default, fr, en , nl }';
+                entries['balafon/chunk-res'] = js_res.join("\n") + '; const { fr, en, nl}=res; export { res as default, fr, en , nl }';
                 js_res.length = 0;
                 js_res.push('import res, { fr, en , nl } from "balafon/chunk-res";')
 
@@ -549,51 +552,51 @@ const virtualReferenceHandler = (option) => {
 
 
 
-                templatejs = js_res.join("\n")+templatejs.replaceAll('%locale%', 'res'); 
-                entries[_id_i18n] = templatejs;  
+                templatejs = js_res.join("\n") + templatejs.replaceAll('%locale%', 'res');
+                entries[_id_i18n] = templatejs;
                 chunk_await_to[ref] = new BalafonEmitRegex(ref,
-                     '\\(async\\s*\\(\\s*\\)\\s*=>\\s*await\\s+import\\(new\\s+URL\\("[filename]"', 
-                     'await $&');
-                code = ['const m = (async()=>await import('+_rollup_uri(ref)+'))();',
-                 'const d = m.default; const {lang}=m; export { d as default, lang }'].join("\n");
+                    '\\(async\\s*\\(\\s*\\)\\s*=>\\s*await\\s+import\\(new\\s+URL\\("[filename]"',
+                    'await $&');
+                code = ['const m = (async()=>await import(' + _rollup_uri(ref) + '))();',
+                    'const d = m.default; const {lang}=m; export { d as default, lang }'].join("\n");
                 return {
                     code
                 };
             }
-             
 
-            if (!('i18n' in g_watchListener.registry)){
-                const {server} = g_watchListener;
+
+            if (!('i18n' in g_watchListener.registry)) {
+                const { server } = g_watchListener;
                 server.watcher.add(location);
-                g_watchListener.register((js)=>{
-                    let l = new RegExp("^"+location+"\/.+\.json");
-                    if (l.test(js)){
-                        console.log(cli.magenta('['+this._plugin.name+']')+ ' - language changed');
+                g_watchListener.register((js) => {
+                    let l = new RegExp("^" + location + "\/.+\.json");
+                    if (l.test(js)) {
+                        console.log(cli.magenta('[' + this._plugin.name + ']') + ' - language changed');
                         let mod = server.moduleGraph;
                         let fmod = mod.getModuleById("\0virtual:balafon-i18n");
-                        if (fmod){
+                        if (fmod) {
                             mod.invalidateModule(fmod);
                             server
-                           .ws.send({
-                                type: 'full-reload' // update 
-                            });
+                                .ws.send({
+                                    type: 'full-reload' // update 
+                                });
                         }
                         return true;
                     }
-                });   
+                });
                 g_watchListener.registry['i18n'] = 1;
             }
-            fs.readdirSync(location, {recursive:true}).forEach((o,t,m)=>{ 
-                if (m = /(?<locale>[a-zA-Z\-]+)\.(?<t>\bjson\b)$/.exec(o)){
+            fs.readdirSync(location, { recursive: true }).forEach((o, t, m) => {
+                if (m = /(?<locale>[a-zA-Z\-]+)\.(?<t>\bjson\b)$/.exec(o)) {
                     let l = m.groups['locale'];
                     let t = m.groups['t'];
-                    v_fc_checkLocale(l); 
-                    let code = fs.readFileSync(path.join(location, o),'utf-8') || '{}';
-                    locale[l] = t == 'json'? JSON.parse(code): (new Function("defineI18n", code)).apply(null,[defineI18n]);
+                    v_fc_checkLocale(l);
+                    let code = fs.readFileSync(path.join(location, o), 'utf-8') || '{}';
+                    locale[l] = t == 'json' ? JSON.parse(code) : (new Function("defineI18n", code)).apply(null, [defineI18n]);
                 }
-            });  
-         
-            templatejs = templatejs.replaceAll('%locale%', JSON.stringify(locale));  
+            });
+
+            templatejs = templatejs.replaceAll('%locale%', JSON.stringify(locale));
             return {
                 'code': templatejs
             };
@@ -613,16 +616,16 @@ const virtualReferenceHandler = (option) => {
             }
             if (is_prod) {
                 const _id = 'core.js';
-                if (!option.buildCoreJSAsAsset) { 
+                if (!option.buildCoreJSAsAsset) {
                     // + | emit as cunk
                     let tref = this.emitFile({
                         type: 'chunk',
                         id: _id,
-                        name:  _chunkCorePrefix(option) + '/core',
+                        name: _chunkCorePrefix(option) + '/core',
                         preserveSignature: 'strict'
                     });
                     entries[_id] = src;
-                    return 'export default (()=>import(' + _rollup_uri(tref )+ '))()';
+                    return 'export default (()=>import(' + _rollup_uri(tref) + '))()';
                 }
                 let ref = { ref: null }
                 return to_asset_code(this, _id, src, ref);
@@ -633,7 +636,7 @@ const virtualReferenceHandler = (option) => {
                 src,
                 ' } catch(e){ console.log("[core-js]: ", e); };',
                 ' return globalThis.igk; })()'
-            ].join(''); 
+            ].join('');
             return _result;
         },
         'virtual:balafon-corecss': async function () {
@@ -656,7 +659,7 @@ const virtualReferenceHandler = (option) => {
             if (is_prod) {
                 if (!option.buildCoreJSAsAsset) {
                     const _id = 'core.css.js';
-                    let p = _chunkCorePrefix(option);  
+                    let p = _chunkCorePrefix(option);
                     // emit as cunk
                     let tref = this.emitFile({
                         'type': 'chunk',
@@ -702,7 +705,7 @@ const virtualReferenceHandler = (option) => {
                 header.push("import store from '@/store'");
                 uses.push("store && app.use(store);");
             }
-            if (useI18n){
+            if (useI18n) {
                 header.push("import i18n from '@/i18n'");
                 uses.push("i18n && app.use(i18n);");
             }
@@ -713,7 +716,7 @@ const virtualReferenceHandler = (option) => {
             (uses.length > 0) && uses.push('');
             _file = _file.replace('%header-extra-import%', header.join('\n'));
             _file = _file.replace('%plugin-use%', uses.join('\n'));
- 
+
             return {
                 'code': _file
             }
@@ -733,7 +736,7 @@ const virtualReferenceHandler = (option) => {
             // + | ------------------------------------------------------------------------
             // + | include iconlib template 
             // + | 
-            
+
             let _file = fs.readFileSync(_fs_exports('/iconlib.vue.template'), 'utf-8');
             let _plugins = _vue_(v_option.plugins);
             let _result = null;
@@ -802,7 +805,7 @@ const virtualReferenceHandler = (option) => {
                                     name: _getSrvComponents(option) + i,
                                     preserveSignature: 'strict' // force loading with string definition 
                                 });
-                                lrc[i] = '()=>import(' +_rollup_uri(r) + ')';
+                                lrc[i] = '()=>import(' + _rollup_uri(r) + ')';
                                 await _loadVueFile(file, g_components, _p_vue_plugin, _id);
                             } else {
                                 await _loadVueFile(file, g_components, _p_vue_plugin, _id);
@@ -824,13 +827,13 @@ const virtualReferenceHandler = (option) => {
                                 g_watchFile.store(_id, file);
                                 let id = i;
                                 let is_async = false;
-                                if (id.indexOf('-')){
+                                if (id.indexOf('-')) {
                                     id = `"${i}"`;
                                 }
-                                is_async =  /^Async/.test(i.split('-').pop())
-                                let v_v =id + ': ';
+                                is_async = /^Async/.test(i.split('-').pop())
+                                let v_v = id + ': ';
                                 v_v += (is_async) ? 'defineAsyncComponent(async()=>await import("' + __COMPONENT_PREFIX__ + i + '"))' :
-                                    'defineComponent((await (async ()=>await import("' + __COMPONENT_PREFIX__ + i + '") )()).default)'; 
+                                    'defineComponent((await (async ()=>await import("' + __COMPONENT_PREFIX__ + i + '") )()).default)';
                                 lrc.push(v_v); // id + ': defineAsyncComponent(async()=>await import("' + __COMPONENT_PREFIX__ + i + '"))');//new Function(code.code);
                             }
                         }
@@ -895,7 +898,7 @@ const virtualReferenceHandler = (option) => {
             return 'const c = null; export {c as default}';
         }
     };
-    v_modules[_id_i18n] = function(){
+    v_modules[_id_i18n] = function () {
         return entries[_id_i18n];
     };
     const v_idxs = {};
@@ -933,10 +936,10 @@ const virtualReferenceHandler = (option) => {
             if (id in g_components) {
                 return '\0' + id;
             }
-            if (/^lang\/i18n\//.test(id)){
+            if (/^lang\/i18n\//.test(id)) {
                 return '\0' + id;
             }
-            if (id in entries){
+            if (id in entries) {
                 return id;
             }
         },
@@ -957,7 +960,7 @@ const virtualReferenceHandler = (option) => {
                 return rep;
             }
             id = id.replace("\0", '');
-            if (id in entries){
+            if (id in entries) {
                 return entries[id];
             }
         }
@@ -1018,26 +1021,31 @@ const initEnv = (option) => {
                     option.cwdir = cwdir;
                 }
             }
-            if (!cwdir || !controller) {
-                return;
-            }
-            const env = loadEnv(mode, cwdir);
-            env.VITE_IGK_CONTROLLER = controller;
-            env.VITE_IGK_ENTRY_URL = env['VITE_URL'] + __app_environment.entryuri;
+            //  console.log("auto inject....");
+            // auto inject environment to list 
             const list = {};
-            // transform to definition sample
-            for (let j in env) {
-                list[j] = JSON.stringify(env[j]);
+            const wdd_env = loadEnv(mode, path.resolve(__dirname));
+
+            for (let j in wdd_env) {
+                list[j] = JSON.stringify(wdd_env[j]);
+            }
+
+            if (cwdir && controller) {
+
+                const env = loadEnv(mode, cwdir);
+                env.VITE_IGK_CONTROLLER = controller;
+                env.VITE_IGK_ENTRY_URL = env['VITE_URL'] + __app_environment.entryuri;
+             
+                // transform to definition sample
+                for (let j in env) {
+                    list[j] = JSON.stringify(env[j]);
+                }
+                conf.base = __app_environment.entryuri; 
+                conf.resolve.alias['@core-views'] = cwdir + "/Views";  
             }
             conf.define = merge_properties(conf.define, {
                 ...list
-            }, true);
-
-            conf.base = __app_environment.entryuri;
-
-            conf.resolve.alias['@core-views'] = cwdir + "/Views";
-            // conf.define['__BASE_ROUTE__'] = conf.base; 
-
+            }, true);  
         }
     };
 }
@@ -1051,14 +1059,14 @@ const postInitEnv = (option) => {
                 ...conf, ...{
                     build: {
                         rollupOptions: {
-                            output: {  
+                            output: {
                                 manualChunks: ((chunk) => {
-                                    return (n) => { 
-                                        /* @balafon-vite-plugin:manualchunks */ 
+                                    return (n) => {
+                                        /* @balafon-vite-plugin:manualchunks */
                                         if (/^\0balafon-ssr-component/.test(n)) {
                                             // + |  
                                             return 'balafon/srv-components-lib';
-                                        } 
+                                        }
                                         if (chunk) {
                                             if (typeof (chunk) == 'function') {
                                                 return chunk.apply(this, [n]);
@@ -1067,12 +1075,12 @@ const postInitEnv = (option) => {
                                         }
                                     }
                                 })(conf.build.rollupOptions?.output?.manualChunks),
-                                assetFileNames: ((chunk)=>{
-                                    return function(n){ 
+                                assetFileNames: ((chunk) => {
+                                    return function (n) {
                                         if (/\.(jp(e)?g|png|ico|bmp|svg|tiff)$/.test(n.originalFileName))
                                             return "img/[ext]/[name].[ext]";
-                                        if (typeof(chunk)=='function'){
-                                            return chunk.apply(this,[n]);
+                                        if (typeof (chunk) == 'function') {
+                                            return chunk.apply(this, [n]);
                                         }
                                         return chunk;
                                     }
@@ -1197,7 +1205,7 @@ const balafonIconLib = (option) => {
             let m = [];
             let q = this;
             let v_fc = (o) => {
-                if (o instanceof BalafonEmitRegex){
+                if (o instanceof BalafonEmitRegex) {
                     m.push(o);
                     return;
                 }
@@ -1206,13 +1214,13 @@ const balafonIconLib = (option) => {
                 n = n.replace(".", "\\.");
                 m.push(new RegExp(
                     '(import\\(new URL\\("' + n + '",import\\.meta\\.url\\)\\.href\\))', 'g'
-                )); 
+                ));
             };
             ref_emits.forEach(v_fc);
-            for(let i in chunk_await_to){
-                v_fc(chunk_await_to[i]); 
-            } 
-           
+            for (let i in chunk_await_to) {
+                v_fc(chunk_await_to[i]);
+            }
+
 
             if (option.format == 'es') {
                 for (let i in bundle) {
@@ -1220,14 +1228,14 @@ const balafonIconLib = (option) => {
                     if (i.endsWith('.js') && (file.type == 'chunk')) {
                         let code = file.code;
                         if (code) {
-                            m.forEach(function(n){
-                                if (n instanceof BalafonEmitRegex){
-                                    let regex = n.regex(q, file.fileName);  
-                                    if(regex.test(code)) // to check that regex is is content to chung module
+                            m.forEach(function (n) {
+                                if (n instanceof BalafonEmitRegex) {
+                                    let regex = n.regex(q, file.fileName);
+                                    if (regex.test(code)) // to check that regex is is content to chung module
                                         code = code.replace(regex, n.replace);
-                                } else 
+                                } else
                                     code = code.replace(n, '(await $1).default');
-                            }); 
+                            });
                             file.code = code;
                         }
                     }
@@ -1441,7 +1449,7 @@ const balafonSSRComponent = (option) => {
             }
             const srv = '@server';
             if (!(srv in _conf.resolve.alias)) {
-                _conf.resolve.alias[srv] = "";// process.loadEnvFile()
+                _conf.resolve.alias[srv] = "";
             }
         },
         async load(id) {

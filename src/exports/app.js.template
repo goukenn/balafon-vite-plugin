@@ -18,6 +18,7 @@ if (typeof(globalThis.Vue)=='undefined'){
 if (globalThis.igk){
     globalThis.igk.Vue = Vue;
 }
+const _uses = [];
 /**
  * initialize application
  * @param {*} app 
@@ -29,6 +30,9 @@ function _init_app(app, auto_mount){
         app.provide('lib/icons', {default: 'ionicons', libicons});   
     }
     %plugin-use%   
+    if (_uses.length>0){ 
+        _uses.forEach(i=>app.use(i));
+    }
     app.component('Icon', Icon) 
     app.component('Logo', Logo) 
     if (Components){
@@ -65,6 +69,9 @@ const createSSRApp = (app, option, auto_mount)=>{
     let _tapp = createSSRApp(app, option);   
     return _init_app(_tapp, auto_mount);
 }
+const _use_call = function(a){ return (i)=>{return _uses.push(i), a;};};
+Object.defineProperty(createApp, 'use', {get(){ return _use_call(createApp);}});
+Object.defineProperty(createSSRApp, 'use', {get(){ return _use_call(createSSRApp);}}); 
 
 export default (()=>{
     return {

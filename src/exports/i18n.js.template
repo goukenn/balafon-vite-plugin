@@ -4,8 +4,8 @@ import { createI18n } from 'vue-i18n';
 const _FORMAT_KEY_ = '$formats';
 /**
  * merged language data definition 
- * @param {*} lang 
- * @param {*} data data with $format definition or formats keys that must be and object 
+ * @param {string} lang 
+ * @param {Array<string,string>} data data with $format definition or formats keys that must be and object 
  * @returns 
  */
 function _mergeLang(lang, data) {
