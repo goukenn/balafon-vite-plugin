@@ -69,7 +69,7 @@ function _rollup_uri(ref) {
 async function _loadVueFile(file, g_components, _p_vue_plugin, _id) {
     let code = fs.readFileSync(file, 'utf-8');
     try {
-        code = code ? await _p_vue_plugin.transform(code, _id + '.vue') : null;
+        code = code ? await _helper_transform(_p_vue_plugin, code, _id + '.vue') : null;
         if (!code) {
             console.error('null defined .... ', { file, _id });
             return;
@@ -383,6 +383,11 @@ const watchForProjectFolder = (option) => {
         }
     };
 };
+async function _helper_transform(plugin, g, c){
+    if (typeof plugin.transform == 'function')
+        return await plugin.transform(g, c); 
+    return await plugin.transform.handler(g,c);
+}
 
 const removeIndexHtml = (option) => {
     /**
@@ -743,7 +748,14 @@ const virtualReferenceHandler = (option) => {
             // + |  treat code file
             _file = _file.replaceAll('%default_lib%', option.icons['\0default_lib'] ?? 'ionicons')
             if (_plugins) {
-                _result = await _plugins.transform(_file, 'virtual:balafon-iconslib.vue');// must end with .vue to be properly transformed
+                const {transform} = _plugins;        
+                _result = await _helper_transform(_plugins, _file, 'virtual:balafon-iconslib.vue');        
+                // if (typeof transform == 'function')
+                //     // must end with .vue to be properly transformed
+                //     _result = await _plugins.transform(_file, 'virtual:balafon-iconslib.vue');
+                // else{
+                //      _result = await _plugins.transform.handler(_file, 'virtual:balafon-iconslib.vue');
+                // }
             }
             if (!_result) {
                 _file = this.transform ? this.transform(_file) : _file;
@@ -774,7 +786,7 @@ const virtualReferenceHandler = (option) => {
                 // + | transform svg content to template using vue:plugin trans form 
                 g = g.substring(g.indexOf("<svg"))
                 g = '<template><span class="logo">' + g + '</span></template>';
-                code = await _p_vue_plugin.transform(g, 'virtual:balafon-logo.vue');
+                code = await _helper_transform(_p_vue_plugin, g, 'virtual:balafon-logo.vue');
                 return code;
             }
         },
@@ -1055,6 +1067,9 @@ const postInitEnv = (option) => {
         enforce: 'post',
         target: 'build',
         config(conf) {
+            if (!('build' in conf)){
+                return {};
+            }
             return {
                 ...conf, ...{
                     build: {
@@ -1074,7 +1089,7 @@ const postInitEnv = (option) => {
                                             return chunk;
                                         }
                                     }
-                                })(conf.build.rollupOptions?.output?.manualChunks),
+                                })(conf.build?.rollupOptions?.output?.manualChunks),
                                 assetFileNames: ((chunk) => {
                                     return function (n) {
                                         if (/\.(jp(e)?g|png|ico|bmp|svg|tiff)$/.test(n.originalFileName))
@@ -1082,9 +1097,12 @@ const postInitEnv = (option) => {
                                         if (typeof (chunk) == 'function') {
                                             return chunk.apply(this, [n]);
                                         }
+                                        if (typeof chunk > 'u'){
+                                            return n.name;
+                                        }
                                         return chunk;
                                     }
-                                })(conf.build.rollupOptions?.output?.assetFileNames)
+                                })(conf.build?.rollupOptions?.output?.assetFileNames)
 
                             }
                         }
@@ -1491,7 +1509,7 @@ const balafonSSRComponent = (option) => {
  * plugins function
  */
 export default async (option) => {
-    console.log(cli.blueBright('igkdev') + ' - plugin ' + cli.green(__PLUGIN_NAME__))
+    console.log(cli.blueBright('igkdev') + ' - plugin start : ' + cli.green(__PLUGIN_NAME__))
     option = merge_properties(option, __baseOptions);
     merge_properties(_config_option, option);
 

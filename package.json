@@ -1,8 +1,8 @@
 {
   "name": "vite-plugin-balafon",
-  "version": "1.0.27",
+  "version": "1.0.29",
   "main": "src/main.js",
-  "author": "<bondje.doue@gmail.com>",
+  "author": "C.A.D BONDJE DOUE<cbondje@igkdev.com>",
   "license": "MIT",
   "type": "module",
   "private": false,

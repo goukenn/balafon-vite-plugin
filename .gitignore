@@ -3,3 +3,4 @@
 yarn*
 dist
 webpack.config.js
+*.tgz

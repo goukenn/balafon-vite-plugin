@@ -27,7 +27,7 @@ or
 yarn add vite-plugin-balafon
 ```
 
-Note: this package depend on `cli-color` and `vite`
+**Note:** this package depend on `cli-color` and `vite` package
 
 ## usage
 - in vite.config.js
@@ -154,7 +154,4 @@ or "text.formats" the new text to use
 ```json
 
 ```
-
-
-
 ## RELEASE
