@@ -15,15 +15,13 @@
     "vuejs"
   ],
   "devDependencies": {
-    "vite": "^5.4.8",
-    "webpack": "^5.95.0",
-    "webpack-cli": "^5.1.4"
+    "vite": "^5.4.8"
   },
   "dependencies": {
     "cli-color": "^2.0.4"
   },
   "scripts": {
     "start": "node src/main.js",
-    "test": "node tests/sc.ts."
+    "test": "node --test tests/sc.ts.js"
   }
 }

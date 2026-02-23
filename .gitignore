@@ -1,6 +1,8 @@
-**/node_modules/*
-.vsode
-yarn*
-dist
-webpack.config.js
+**/node_modules/
+.vscode
+dist/
 *.tgz
+yarn.lock
+yarn-error.log
+.DS_Store
+webpack.config.js
